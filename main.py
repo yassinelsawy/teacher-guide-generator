@@ -256,6 +256,45 @@ def html_to_platypus(html_content: str, styles: dict) -> list:
             pos += ws.end()
             continue
 
+        # Quill wraps images in <p><img ...></p> — handle before generic block match
+        img_in_p = re.match(
+            r'<p\b[^>]*>\s*(<img\b[^>]*src="([^"]+)"[^>]*/?>\s*)+</p>',
+            html_content[pos:],
+            re.DOTALL | re.IGNORECASE,
+        )
+        if img_in_p:
+            for img_match in re.finditer(
+                r'<img\b[^>]*src="([^"]+)"[^>]*/?>',
+                img_in_p.group(0),
+                re.IGNORECASE,
+            ):
+                src = img_match.group(1)
+                try:
+                    if src.startswith("data:image"):
+                        _, b64data = src.split(",", 1)
+                        img_bytes = base64.b64decode(b64data)
+                    else:
+                        import urllib.request
+                        with urllib.request.urlopen(src) as resp:
+                            img_bytes = resp.read()
+                    from PIL import Image as PILImage
+                    pil = PILImage.open(io.BytesIO(img_bytes))
+                    orig_w, orig_h = pil.size
+                    max_w = 14 * cm
+                    scale = max_w / orig_w
+                    pil_rgb = pil.convert('RGB')
+                    out_buf = io.BytesIO()
+                    pil_rgb.save(out_buf, format='JPEG', quality=90)
+                    out_buf.seek(0)
+                    rl_img = RLImage(out_buf, width=max_w, height=orig_h * scale)
+                    flowables.append(Spacer(1, 0.2 * cm))
+                    flowables.append(rl_img)
+                    flowables.append(Spacer(1, 0.2 * cm))
+                except Exception:
+                    pass
+            pos += img_in_p.end()
+            continue
+
         block = re.match(
             r"<(h1|h2|h3|p|ul|ol)\b[^>]*>(.*?)</\1>",
             html_content[pos:],
@@ -323,15 +362,22 @@ def html_to_platypus(html_content: str, styles: dict) -> list:
             src = img_tag.group(1)
             try:
                 if src.startswith('data:image'):
-                    header, b64data = src.split(',', 1)
+                    _, b64data = src.split(',', 1)
                     img_bytes = base64.b64decode(b64data)
-                    img_buf = io.BytesIO(img_bytes)
                 else:
                     import urllib.request
                     with urllib.request.urlopen(src) as resp:
-                        img_buf = io.BytesIO(resp.read())
-
-                rl_img = RLImage(img_buf, width=14 * cm, kind='proportionate')
+                        img_bytes = resp.read()
+                from PIL import Image as PILImage
+                pil = PILImage.open(io.BytesIO(img_bytes))
+                orig_w, orig_h = pil.size
+                max_w = 14 * cm
+                scale = max_w / orig_w
+                pil_rgb = pil.convert('RGB')
+                out_buf = io.BytesIO()
+                pil_rgb.save(out_buf, format='JPEG', quality=90)
+                out_buf.seek(0)
+                rl_img = RLImage(out_buf, width=max_w, height=orig_h * scale)
                 flowables.append(Spacer(1, 0.2 * cm))
                 flowables.append(rl_img)
                 flowables.append(Spacer(1, 0.2 * cm))

@@ -446,12 +446,21 @@ async def export_pdf(request: Request):
     )
 
     styles = build_pdf_styles()
-    flowables = html_to_platypus(html_content, styles)
+    try:
+        flowables = html_to_platypus(html_content, styles)
+    except Exception as exc:
+        import traceback; traceback.print_exc()
+        return JSONResponse(status_code=500, content={"error": f"HTML parsing failed: {exc}"})
 
     if not flowables:
         flowables = [Paragraph("No content to export.", styles["body"])]
 
-    doc.build(flowables)
+    try:
+        doc.build(flowables)
+    except Exception as exc:
+        import traceback; traceback.print_exc()
+        return JSONResponse(status_code=500, content={"error": f"PDF build failed: {exc}"})
+
     buffer.seek(0)
 
     safe_name = re.sub(r"[^\w\-]", "_", file_name)

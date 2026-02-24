@@ -184,8 +184,8 @@ pdfBtn.addEventListener('click', async () => {
     });
 
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'PDF generation failed.' }));
-      showError(err.error || 'PDF generation failed.');
+      const err = await res.json().catch(() => ({ error: `PDF generation failed (HTTP ${res.status}).` }));
+      showError(err.error || `PDF generation failed (HTTP ${res.status}).`);
       return;
     }
 

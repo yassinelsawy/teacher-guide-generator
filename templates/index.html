@@ -4,6 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Teacher Guide Generator</title>
+
+  <!-- Quill snow theme -->
+  <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet" />
+
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
@@ -12,7 +16,7 @@
   <!-- Header -->
   <div class="header">
     <h1>&#128196; Teacher Guide Generator</h1>
-    <p>Upload a PPTX &rarr; Gemini generates a structured guide &rarr; Edit &amp; download</p>
+    <p>Upload a PPTX &rarr; Gemini generates a structured guide &rarr; Edit &amp; export</p>
   </div>
 
   <!-- Upload Card -->
@@ -46,84 +50,26 @@
       <div class="guide-meta">
         <div>
           <div class="guide-meta-title" id="guide-title">Teacher Guide</div>
-          <div class="guide-meta-sub">All fields are editable. Click any field to edit.</div>
+          <div class="guide-meta-sub">All content is editable. Use the toolbar to format text.</div>
         </div>
-        <div class="btn-row" style="margin-top:0;">
-          <button class="btn btn-download" onclick="downloadGuide()">&#11015; Download .txt</button>
-        </div>
-      </div>
-
-      <!-- Session Overview -->
-      <div class="section-block">
-        <div class="section-label">Session Overview</div>
-        <textarea class="field" id="f-overview" rows="4"></textarea>
-      </div>
-
-      <!-- Learning Objectives -->
-      <div class="section-block">
-        <div class="section-label">Learning Objectives</div>
-        <ul id="objectives-list"></ul>
-        <button class="add-obj-btn" onclick="addObjective('')">+ Add Objective</button>
-      </div>
-
-      <!-- Preparation -->
-      <div class="section-block">
-        <div class="section-label">Preparation</div>
-        <textarea class="field" id="f-preparation" rows="4"></textarea>
-      </div>
-
-      <!-- Lesson Procedure -->
-      <div class="section-block">
-        <div class="section-label">Lesson Procedure</div>
-        <div class="procedure-grid">
-          <div>
-            <div class="sub-label">Initiate</div>
-            <textarea class="field" id="f-initiate" rows="6"></textarea>
-          </div>
-          <div>
-            <div class="sub-label">Learn</div>
-            <textarea class="field" id="f-learn" rows="6"></textarea>
-          </div>
-          <div>
-            <div class="sub-label">Make</div>
-            <textarea class="field" id="f-make" rows="6"></textarea>
-          </div>
-          <div>
-            <div class="sub-label">Share</div>
-            <textarea class="field" id="f-share" rows="6"></textarea>
-          </div>
+        <div class="btn-row" style="margin-top:0; gap:.6rem;">
+          <button class="btn btn-pdf" id="pdf-btn">&#128462; Export PDF</button>
         </div>
       </div>
 
-      <!-- Glossary -->
-      <div class="section-block">
-        <div class="section-label">Glossary</div>
-        <div class="gloss-header">
-          <span>Term</span><span>Definition</span><span></span>
-        </div>
-        <div id="glossary-rows"></div>
-        <button class="add-obj-btn" onclick="addGlossaryRow('','')">+ Add Term</button>
-      </div>
-
-      <!-- Bonus Activities -->
-      <div class="section-block">
-        <div class="section-label">Bonus Activities</div>
-        <textarea class="field" id="f-bonus" rows="3"></textarea>
-      </div>
-
-      <div class="btn-row">
-        <button class="btn btn-download" onclick="downloadGuide()">&#11015; Download Teacher Guide (.txt)</button>
-      </div>
+      <!-- Quill editor container -->
+      <div id="quill-editor"></div>
 
     </div>
   </div>
   <!-- /editor-section -->
 
-  <p class="footer">Powered by FastAPI &middot; Gemini 2.0 Flash</p>
+  <p class="footer">Powered by FastAPI &middot; Gemini 2.0 Flash &middot; ReportLab</p>
 
 </div>
 <!-- /container -->
 
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
 <script src="/static/app.js"></script>
 </body>
 </html>

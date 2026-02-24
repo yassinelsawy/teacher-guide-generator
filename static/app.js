@@ -1,14 +1,60 @@
-/* ── DOM refs ─────────────────────────────────────────────────────── */
+﻿/* ── DOM refs ─────────────────────────────────────────────────────── */
 const fileInput     = document.getElementById('file-input');
 const fileLabel     = document.getElementById('file-label');
 const dropzone      = document.getElementById('dropzone');
 const generateBtn   = document.getElementById('generate-btn');
 const demoBtn       = document.getElementById('demo-btn');
+const pdfBtn        = document.getElementById('pdf-btn');
 const spinner       = document.getElementById('spinner');
 const spinnerMsg    = document.getElementById('spinner-msg');
 const errorBox      = document.getElementById('error-box');
 const editorSection = document.getElementById('editor-section');
 const guideTitle    = document.getElementById('guide-title');
+
+/* ── Quill setup ──────────────────────────────────────────────────── */
+const quill = new Quill('#quill-editor', {
+  theme: 'snow',
+  modules: {
+    toolbar: {
+      container: [
+        [{ header: [1, 2, 3, false] }],
+        ['bold', 'italic', 'underline'],
+        [{ color: [] }, { background: [] }],
+        [{ list: 'ordered' }, { list: 'bullet' }],
+        [{ indent: '-1' }, { indent: '+1' }],
+        ['link', 'image'],
+        ['clean']
+      ],
+      handlers: {
+        image: imagePickerHandler
+      }
+    }
+  }
+});
+
+/* ── Custom image handler — opens file picker, embeds as base64 ───── */
+function imagePickerHandler() {
+  const input = document.createElement('input');
+  input.setAttribute('type', 'file');
+  input.setAttribute('accept', 'image/png, image/jpeg, image/gif, image/webp');
+  input.click();
+
+  input.addEventListener('change', () => {
+    const file = input.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = e => {
+      const range = quill.getSelection(true);
+      quill.insertEmbed(range.index, 'image', e.target.result);
+      quill.setSelection(range.index + 1);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+/* Keep track of current file name for PDF export */
+let currentFileName = 'teacher_guide';
 
 /* ── File selection ───────────────────────────────────────────────── */
 fileInput.addEventListener('change', () => {
@@ -55,6 +101,23 @@ function stopSpinner() {
   spinner.classList.remove('active');
 }
 
+/* ── Populate Quill editor ────────────────────────────────────────── */
+function populateEditor(html, fileName) {
+  currentFileName = fileName || 'teacher_guide';
+  guideTitle.textContent = 'Teacher Guide — ' + currentFileName;
+
+  quill.clipboard.dangerouslyPasteHTML(html);
+
+  editorSection.classList.add('show');
+  editorSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* ── Error helper ─────────────────────────────────────────────────── */
+function showError(msg) {
+  errorBox.textContent = msg;
+  errorBox.classList.add('show');
+}
+
 /* ── Demo ────────────────────────────────────────────────────────── */
 demoBtn.addEventListener('click', async () => {
   errorBox.classList.remove('show');
@@ -63,7 +126,7 @@ demoBtn.addEventListener('click', async () => {
   try {
     const res  = await fetch('/demo');
     const data = await res.json();
-    populateEditor(data.guide, data.file_name);
+    populateEditor(data.html, data.file_name);
   } catch (err) {
     showError('Demo failed: ' + err.message);
   } finally {
@@ -96,7 +159,7 @@ generateBtn.addEventListener('click', async () => {
       return;
     }
 
-    populateEditor(data.guide, data.file_name);
+    populateEditor(data.html, data.file_name);
 
   } catch (err) {
     showError('Network error: ' + err.message);
@@ -106,130 +169,38 @@ generateBtn.addEventListener('click', async () => {
   }
 });
 
-/* ── Populate editor ──────────────────────────────────────────────── */
-function populateEditor(g, fileName) {
-  guideTitle.textContent = 'Teacher Guide — ' + fileName;
+/* ── Export PDF ───────────────────────────────────────────────────── */
+pdfBtn.addEventListener('click', async () => {
+  const html = quill.root.innerHTML;
 
-  document.getElementById('f-overview').value    = g.session_overview          || '';
-  document.getElementById('f-preparation').value = g.preparation               || '';
-  document.getElementById('f-initiate').value    = g.lesson_procedure?.initiate || '';
-  document.getElementById('f-learn').value       = g.lesson_procedure?.learn    || '';
-  document.getElementById('f-make').value        = g.lesson_procedure?.make     || '';
-  document.getElementById('f-share').value       = g.lesson_procedure?.share    || '';
-  document.getElementById('f-bonus').value       = g.bonus_activities           || '';
+  pdfBtn.disabled = true;
+  pdfBtn.textContent = 'Generating PDF...';
 
-  // Objectives
-  const ol = document.getElementById('objectives-list');
-  ol.innerHTML = '';
-  (g.learning_objectives || []).forEach(obj => addObjective(obj));
+  try {
+    const res = await fetch('/export-pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ html, file_name: currentFileName })
+    });
 
-  // Glossary
-  const gr = document.getElementById('glossary-rows');
-  gr.innerHTML = '';
-  (g.glossary || []).forEach(row => addGlossaryRow(row.term, row.definition));
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'PDF generation failed.' }));
+      showError(err.error || 'PDF generation failed.');
+      return;
+    }
 
-  editorSection.classList.add('show');
-  editorSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = currentFileName + '.pdf';
+    a.click();
+    URL.revokeObjectURL(url);
 
-/* ── Objectives ───────────────────────────────────────────────────── */
-function addObjective(text) {
-  const ol = document.getElementById('objectives-list');
-  const li = document.createElement('li');
-  li.innerHTML = `
-    <input type="text" value="${escHtml(text)}" placeholder="Learning objective..." />
-    <button class="del-btn" title="Remove" onclick="this.closest('li').remove()">&times;</button>`;
-  ol.appendChild(li);
-}
-
-/* ── Glossary ─────────────────────────────────────────────────────── */
-function addGlossaryRow(term, def) {
-  const container = document.getElementById('glossary-rows');
-  const div = document.createElement('div');
-  div.className = 'glossary-row';
-  div.innerHTML = `
-    <input type="text" value="${escHtml(term)}" placeholder="Term" />
-    <input type="text" value="${escHtml(def)}"  placeholder="Definition" />
-    <button class="del-btn" title="Remove" onclick="this.closest('.glossary-row').remove()">&times;</button>`;
-  container.appendChild(div);
-}
-
-/* ── Download ─────────────────────────────────────────────────────── */
-function downloadGuide() {
-  const title = guideTitle.textContent;
-
-  const objectives = [...document.querySelectorAll('#objectives-list li input')]
-    .map((inp, i) => `  ${i + 1}. ${inp.value}`)
-    .join('\n');
-
-  const glossary = [...document.querySelectorAll('#glossary-rows .glossary-row')]
-    .map(row => {
-      const inputs = row.querySelectorAll('input');
-      return `  ${inputs[0].value}: ${inputs[1].value}`;
-    })
-    .join('\n');
-
-  const sep = (n = 40) => '-'.repeat(n);
-
-  const content = [
-    title,
-    '='.repeat(title.length),
-    '',
-    'SESSION OVERVIEW',
-    sep(),
-    document.getElementById('f-overview').value,
-    '',
-    'LEARNING OBJECTIVES',
-    sep(),
-    objectives,
-    '',
-    'PREPARATION',
-    sep(),
-    document.getElementById('f-preparation').value,
-    '',
-    'LESSON PROCEDURE',
-    sep(),
-    'Initiate:',
-    document.getElementById('f-initiate').value,
-    '',
-    'Learn:',
-    document.getElementById('f-learn').value,
-    '',
-    'Make:',
-    document.getElementById('f-make').value,
-    '',
-    'Share:',
-    document.getElementById('f-share').value,
-    '',
-    'GLOSSARY',
-    sep(),
-    glossary,
-    '',
-    'BONUS ACTIVITIES',
-    sep(),
-    document.getElementById('f-bonus').value,
-  ].join('\n');
-
-  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  a.download = title.replace(/[^a-z0-9]/gi, '_') + '.txt';
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-/* ── Utilities ────────────────────────────────────────────────────── */
-function showError(msg) {
-  errorBox.textContent = '⚠️ ' + msg;
-  errorBox.classList.add('show');
-  errorBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-}
-
-function escHtml(str) {
-  return (str || '')
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
+  } catch (err) {
+    showError('PDF export failed: ' + err.message);
+  } finally {
+    pdfBtn.disabled = false;
+    pdfBtn.innerHTML = '&#128462; Export PDF';
+  }
+});

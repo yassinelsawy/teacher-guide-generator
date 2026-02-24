@@ -282,3 +282,47 @@ textarea.field:focus {
   color: #a0aec0;
   margin-top: 2rem;
 }
+
+/* ── PDF Button ───────────────────────────────────────────────────── */
+.btn-pdf {
+  background: linear-gradient(135deg, #dc2626, #ea580c);
+}
+.btn-pdf:hover { opacity: .9; }
+
+/* ── Quill Editor ─────────────────────────────────────────────────── */
+#quill-editor {
+  min-height: 480px;
+  border-radius: 0 0 8px 8px;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+/* Make Quill toolbar match app style */
+.ql-toolbar.ql-snow {
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px 8px 0 0;
+  background: #f8fafc;
+}
+.ql-container.ql-snow {
+  border: 1.5px solid #e2e8f0;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+}
+
+/* Heading styles inside quill editor */
+#quill-editor h1 { font-size: 1.6rem; font-weight: 700; color: #1a202c; margin: .5rem 0 .4rem; }
+#quill-editor h2 { font-size: 1.2rem; font-weight: 700; color: #4f46e5; margin: 1rem 0 .3rem; padding-bottom: .2rem; border-bottom: 1.5px solid #e2e8f0; }
+#quill-editor h3 { font-size: 1rem; font-weight: 700; color: #374151; margin: .75rem 0 .25rem; }
+#quill-editor p  { margin: .3rem 0 .5rem; }
+#quill-editor ul, #quill-editor ol { padding-left: 1.4rem; margin: .3rem 0 .6rem; }
+#quill-editor li { margin-bottom: .25rem; }
+#quill-editor strong { font-weight: 700; }
+#quill-editor img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  margin: .5rem 0;
+  display: block;
+  cursor: pointer;
+}

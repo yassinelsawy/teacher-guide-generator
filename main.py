@@ -218,15 +218,34 @@ def build_pdf_styles() -> dict:
 
 
 def html_to_platypus(html_content: str, styles: dict) -> list:
-    """Convert simple semantic HTML to a list of ReportLab Platypus flowables."""
+    """Convert Quill-generated HTML to a list of ReportLab Platypus flowables."""
     flowables = []
 
-    # Normalize inline tags to ReportLab XML equivalents
-    html_content = re.sub(r"<strong\b[^>]*>", "<b>", html_content, flags=re.IGNORECASE)
-    html_content = re.sub(r"</strong>", "</b>", html_content, flags=re.IGNORECASE)
-    html_content = re.sub(r"<em\b[^>]*>", "<i>", html_content, flags=re.IGNORECASE)
-    html_content = re.sub(r"</em>", "</i>", html_content, flags=re.IGNORECASE)
-    html_content = re.sub(r"<br\s*/?>", "<br/>", html_content, flags=re.IGNORECASE)
+    def clean_inner(text: str) -> str:
+        """Strip Quill-specific tags, keep only <b> <i> <br/>, escape XML."""
+        # Unwrap span tags (keep inner text)
+        text = re.sub(r"<span\b[^>]*>(.*?)</span>", r"\1", text, flags=re.DOTALL | re.IGNORECASE)
+        # Normalize strong/em to b/i
+        text = re.sub(r"<strong\b[^>]*>", "<b>", text, flags=re.IGNORECASE)
+        text = re.sub(r"</strong>", "</b>", text, flags=re.IGNORECASE)
+        text = re.sub(r"<em\b[^>]*>", "<i>", text, flags=re.IGNORECASE)
+        text = re.sub(r"</em>", "</i>", text, flags=re.IGNORECASE)
+        # Normalize br
+        text = re.sub(r"<br\s*/?>", "<br/>", text, flags=re.IGNORECASE)
+        # Strip all remaining unknown tags, keeping inner text
+        text = re.sub(r"<(?!/?(?:b|i|br/?)\b)[^>]+>", "", text, flags=re.IGNORECASE)
+        # Decode common HTML entities to plain text / safe XML
+        replacements = [
+            ("&nbsp;", " "), ("&mdash;", "—"), ("&ndash;", "–"),
+            ("&rarr;", "→"), ("&larr;", "←"), ("&ldquo;", "\u201c"),
+            ("&rdquo;", "\u201d"), ("&lsquo;", "\u2018"), ("&rsquo;", "\u2019"),
+            ("&hellip;", "…"), ("&copy;", "©"), ("&reg;", "®"),
+        ]
+        for entity, char in replacements:
+            text = text.replace(entity, char)
+        # Fix bare & that could break ReportLab's XML parser
+        text = re.sub(r"&(?!(?:amp|lt|gt|#\d+);)", "&amp;", text)
+        return text.strip()
 
     pos = 0
     length = len(html_content)
@@ -244,49 +263,52 @@ def html_to_platypus(html_content: str, styles: dict) -> list:
         )
         if block:
             tag = block.group(1).lower()
-            inner = block.group(2).strip()
+            inner = clean_inner(block.group(2))
 
-            if tag == "h1":
-                flowables.append(Paragraph(inner, styles["h1"]))
-                flowables.append(Spacer(1, 0.3 * cm))
+            try:
+                if tag == "h1":
+                    flowables.append(Paragraph(inner, styles["h1"]))
+                    flowables.append(Spacer(1, 0.3 * cm))
 
-            elif tag == "h2":
-                flowables.append(Spacer(1, 0.4 * cm))
-                flowables.append(Paragraph(inner, styles["h2"]))
-                flowables.append(Spacer(1, 0.15 * cm))
-
-            elif tag == "h3":
-                flowables.append(Spacer(1, 0.2 * cm))
-                flowables.append(Paragraph(inner, styles["h3"]))
-                flowables.append(Spacer(1, 0.1 * cm))
-
-            elif tag == "p":
-                if inner:
-                    flowables.append(Paragraph(inner, styles["body"]))
+                elif tag == "h2":
+                    flowables.append(Spacer(1, 0.4 * cm))
+                    flowables.append(Paragraph(inner, styles["h2"]))
                     flowables.append(Spacer(1, 0.15 * cm))
 
-            elif tag in ("ul", "ol"):
-                items_raw = re.findall(
-                    r"<li\b[^>]*>(.*?)</li>", inner, re.DOTALL | re.IGNORECASE
-                )
-                list_items = [
-                    ListItem(
-                        Paragraph(item.strip(), styles["body"]),
-                        leftIndent=12,
-                        spaceAfter=3,
-                    )
-                    for item in items_raw
-                ]
-                if list_items:
-                    flowables.append(
-                        ListFlowable(
-                            list_items,
-                            bulletType="bullet",
-                            leftIndent=20,
-                            bulletFontSize=8,
-                        )
-                    )
+                elif tag == "h3":
                     flowables.append(Spacer(1, 0.2 * cm))
+                    flowables.append(Paragraph(inner, styles["h3"]))
+                    flowables.append(Spacer(1, 0.1 * cm))
+
+                elif tag == "p":
+                    if inner:
+                        flowables.append(Paragraph(inner, styles["body"]))
+                        flowables.append(Spacer(1, 0.15 * cm))
+
+                elif tag in ("ul", "ol"):
+                    items_raw = re.findall(
+                        r"<li\b[^>]*>(.*?)</li>", block.group(2), re.DOTALL | re.IGNORECASE
+                    )
+                    list_items = [
+                        ListItem(
+                            Paragraph(clean_inner(item), styles["body"]),
+                            leftIndent=12,
+                            spaceAfter=3,
+                        )
+                        for item in items_raw
+                    ]
+                    if list_items:
+                        flowables.append(
+                            ListFlowable(
+                                list_items,
+                                bulletType="bullet",
+                                leftIndent=20,
+                                bulletFontSize=8,
+                            )
+                        )
+                        flowables.append(Spacer(1, 0.2 * cm))
+            except Exception:
+                pass  # skip blocks that still fail
 
             pos += block.end()
             continue
@@ -314,7 +336,7 @@ def html_to_platypus(html_content: str, styles: dict) -> list:
                 flowables.append(rl_img)
                 flowables.append(Spacer(1, 0.2 * cm))
             except Exception:
-                pass  # skip unreadable images
+                pass
             pos += img_tag.end()
             continue
 

@@ -1,0 +1,129 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teacher Guide Generator</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <h1>&#128196; Teacher Guide Generator</h1>
+    <p>Upload a PPTX &rarr; Gemini generates a structured guide &rarr; Edit &amp; download</p>
+  </div>
+
+  <!-- Upload Card -->
+  <div class="card">
+    <div class="dropzone" id="dropzone">
+      <input type="file" id="file-input" accept=".pptx" />
+      <div class="dropzone-icon">&#128193;</div>
+      <p><strong>Click to browse</strong> or drag &amp; drop here</p>
+      <small>Accepted: .pptx files only</small>
+      <span id="file-label"></span>
+    </div>
+
+    <div class="alert alert-error" id="error-box"></div>
+
+    <div class="spinner-wrap" id="spinner">
+      <div class="spinner"></div>
+      <p class="spinner-msg" id="spinner-msg">Uploading file...</p>
+    </div>
+
+    <button class="btn btn-full" id="generate-btn">&#128640; Generate Teacher Guide</button>
+
+    <div style="text-align:center; margin-top:.8rem;">
+      <button class="btn btn-demo" id="demo-btn">&#127774; Try Demo (no upload needed)</button>
+    </div>
+  </div>
+
+  <!-- Editor (shown after generation) -->
+  <div id="editor-section">
+    <div class="card">
+
+      <div class="guide-meta">
+        <div>
+          <div class="guide-meta-title" id="guide-title">Teacher Guide</div>
+          <div class="guide-meta-sub">All fields are editable. Click any field to edit.</div>
+        </div>
+        <div class="btn-row" style="margin-top:0;">
+          <button class="btn btn-download" onclick="downloadGuide()">&#11015; Download .txt</button>
+        </div>
+      </div>
+
+      <!-- Session Overview -->
+      <div class="section-block">
+        <div class="section-label">Session Overview</div>
+        <textarea class="field" id="f-overview" rows="4"></textarea>
+      </div>
+
+      <!-- Learning Objectives -->
+      <div class="section-block">
+        <div class="section-label">Learning Objectives</div>
+        <ul id="objectives-list"></ul>
+        <button class="add-obj-btn" onclick="addObjective('')">+ Add Objective</button>
+      </div>
+
+      <!-- Preparation -->
+      <div class="section-block">
+        <div class="section-label">Preparation</div>
+        <textarea class="field" id="f-preparation" rows="4"></textarea>
+      </div>
+
+      <!-- Lesson Procedure -->
+      <div class="section-block">
+        <div class="section-label">Lesson Procedure</div>
+        <div class="procedure-grid">
+          <div>
+            <div class="sub-label">Initiate</div>
+            <textarea class="field" id="f-initiate" rows="6"></textarea>
+          </div>
+          <div>
+            <div class="sub-label">Learn</div>
+            <textarea class="field" id="f-learn" rows="6"></textarea>
+          </div>
+          <div>
+            <div class="sub-label">Make</div>
+            <textarea class="field" id="f-make" rows="6"></textarea>
+          </div>
+          <div>
+            <div class="sub-label">Share</div>
+            <textarea class="field" id="f-share" rows="6"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Glossary -->
+      <div class="section-block">
+        <div class="section-label">Glossary</div>
+        <div class="gloss-header">
+          <span>Term</span><span>Definition</span><span></span>
+        </div>
+        <div id="glossary-rows"></div>
+        <button class="add-obj-btn" onclick="addGlossaryRow('','')">+ Add Term</button>
+      </div>
+
+      <!-- Bonus Activities -->
+      <div class="section-block">
+        <div class="section-label">Bonus Activities</div>
+        <textarea class="field" id="f-bonus" rows="3"></textarea>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-download" onclick="downloadGuide()">&#11015; Download Teacher Guide (.txt)</button>
+      </div>
+
+    </div>
+  </div>
+  <!-- /editor-section -->
+
+  <p class="footer">Powered by FastAPI &middot; Gemini 2.0 Flash</p>
+
+</div>
+<!-- /container -->
+
+<script src="/static/app.js"></script>
+</body>
+</html>

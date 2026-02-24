@@ -1,0 +1,284 @@
+/* ── Reset & Base ─────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: #f0f4f8;
+  color: #1a202c;
+  min-height: 100vh;
+  padding: 2rem 1rem;
+}
+
+/* ── Layout ───────────────────────────────────────────────────────── */
+.container { max-width: 860px; margin: 0 auto; }
+
+/* ── Header ───────────────────────────────────────────────────────── */
+.header { text-align: center; margin-bottom: 2rem; }
+.header h1 { font-size: 1.9rem; font-weight: 700; }
+.header p  { color: #718096; font-size: .95rem; margin-top: .35rem; }
+
+/* ── Card ─────────────────────────────────────────────────────────── */
+.card {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 4px 24px rgba(0,0,0,.08);
+  padding: 2rem 2.2rem;
+  margin-bottom: 1.5rem;
+}
+
+/* ── Drop Zone ────────────────────────────────────────────────────── */
+.dropzone {
+  border: 2.5px dashed #c3dafe;
+  border-radius: 12px;
+  background: #f7faff;
+  padding: 2rem 1.5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .2s, background .2s;
+  position: relative;
+  margin-bottom: 1.2rem;
+}
+.dropzone:hover,
+.dropzone.drag-over {
+  border-color: #4f46e5;
+  background: #eef2ff;
+}
+.dropzone input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+.dropzone-icon { font-size: 2rem; margin-bottom: .4rem; }
+.dropzone p    { font-size: .9rem; color: #4a5568; }
+.dropzone small { color: #a0aec0; font-size: .78rem; }
+
+#file-label {
+  display: block;
+  margin-top: .5rem;
+  font-size: .82rem;
+  color: #4f46e5;
+  font-weight: 600;
+  min-height: 1.1em;
+}
+
+/* ── Buttons ──────────────────────────────────────────────────────── */
+.btn {
+  display: inline-block;
+  padding: .8rem 1.6rem;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  color: #fff;
+  font-size: .95rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: opacity .2s, transform .1s;
+}
+.btn:hover  { opacity: .9; }
+.btn:active { transform: scale(.97); }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+
+.btn-demo {
+  background: none;
+  border: 1.5px dashed #a3bffa;
+  border-radius: 10px;
+  color: #4f46e5;
+  font-size: .85rem;
+  font-weight: 600;
+  padding: .55rem 1.4rem;
+  cursor: pointer;
+  transition: background .2s, color .2s;
+}
+.btn-demo:hover { background: #eef2ff; }
+
+.btn-full  { width: 100%; display: block; text-align: center; }
+
+.btn-download {
+  background: linear-gradient(135deg, #059669, #0891b2);
+  margin-top: .5rem;
+}
+
+.btn-row {
+  display: flex;
+  gap: .8rem;
+  flex-wrap: wrap;
+  margin-top: 1.5rem;
+}
+
+/* ── Spinner ──────────────────────────────────────────────────────── */
+.spinner-wrap {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: .7rem;
+  padding: 1.5rem 0;
+}
+.spinner-wrap.active { display: flex; }
+
+.spinner {
+  width: 44px; height: 44px;
+  border: 4px solid #e2e8f0;
+  border-top-color: #4f46e5;
+  border-radius: 50%;
+  animation: spin .75s linear infinite;
+}
+.spinner-msg { font-size: .85rem; color: #718096; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Alert ────────────────────────────────────────────────────────── */
+.alert {
+  padding: .9rem 1.1rem;
+  border-radius: 10px;
+  font-size: .9rem;
+  margin-bottom: 1rem;
+  display: none;
+}
+.alert.show   { display: block; }
+.alert-error  { background: #fff5f5; border: 1px solid #feb2b2; color: #c53030; }
+
+/* ── Editor Section ───────────────────────────────────────────────── */
+#editor-section        { display: none; }
+#editor-section.show   { display: block; }
+
+.guide-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.4rem; }
+.guide-meta-title      { font-size: 1.1rem; font-weight: 700; }
+.guide-meta-sub        { font-size: .82rem; color: #718096; }
+
+/* ── Section Blocks ───────────────────────────────────────────────── */
+.section-block  { margin-bottom: 1.6rem; }
+
+.section-label {
+  font-size: .78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: #4f46e5;
+  margin-bottom: .4rem;
+}
+
+textarea.field {
+  width: 100%;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  padding: .7rem .9rem;
+  font-size: .92rem;
+  font-family: inherit;
+  line-height: 1.55;
+  resize: vertical;
+  transition: border-color .2s;
+  color: #1a202c;
+  background: #fafafa;
+}
+textarea.field:focus {
+  outline: none;
+  border-color: #4f46e5;
+  background: #fff;
+}
+
+/* ── Objectives List ──────────────────────────────────────────────── */
+#objectives-list { list-style: none; padding: 0; }
+#objectives-list li {
+  display: flex;
+  gap: .5rem;
+  margin-bottom: .5rem;
+  align-items: flex-start;
+}
+#objectives-list li input {
+  flex: 1;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  padding: .55rem .8rem;
+  font-size: .92rem;
+  font-family: inherit;
+  background: #fafafa;
+  transition: border-color .2s;
+}
+#objectives-list li input:focus {
+  outline: none;
+  border-color: #4f46e5;
+  background: #fff;
+}
+
+.del-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  color: #e53e3e;
+  padding: .3rem;
+  line-height: 1;
+}
+
+.add-obj-btn {
+  background: none;
+  border: 1.5px dashed #a3bffa;
+  border-radius: 8px;
+  color: #4f46e5;
+  font-size: .85rem;
+  padding: .4rem .9rem;
+  cursor: pointer;
+  margin-top: .3rem;
+}
+
+/* ── Glossary ─────────────────────────────────────────────────────── */
+.gloss-header {
+  display: grid;
+  grid-template-columns: 1fr 2fr auto;
+  gap: .5rem;
+  font-size: .75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: #718096;
+  margin-bottom: .35rem;
+}
+.glossary-row {
+  display: grid;
+  grid-template-columns: 1fr 2fr auto;
+  gap: .5rem;
+  margin-bottom: .5rem;
+  align-items: center;
+}
+.glossary-row input {
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  padding: .55rem .8rem;
+  font-size: .88rem;
+  font-family: inherit;
+  background: #fafafa;
+  width: 100%;
+  transition: border-color .2s;
+}
+.glossary-row input:focus {
+  outline: none;
+  border-color: #4f46e5;
+  background: #fff;
+}
+
+/* ── Lesson Procedure Grid ────────────────────────────────────────── */
+.procedure-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+@media (max-width: 600px) {
+  .procedure-grid { grid-template-columns: 1fr; }
+}
+.sub-label {
+  font-size: .78rem;
+  font-weight: 600;
+  color: #2d3748;
+  margin-bottom: .3rem;
+}
+
+/* ── Footer ───────────────────────────────────────────────────────── */
+.footer {
+  text-align: center;
+  font-size: .75rem;
+  color: #a0aec0;
+  margin-top: 2rem;
+}

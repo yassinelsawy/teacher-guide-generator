@@ -1,19 +1,19 @@
+import asyncio
 import base64
 import io
 import os
 import re
-import shutil
 import time
-import uuid
 from pathlib import Path
 
+import requests as http_requests
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, Request, UploadFile
+from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from google import genai
-from pptx import Presentation
+from pydantic import BaseModel
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_LEFT
 from reportlab.lib.pagesizes import A4
@@ -34,9 +34,6 @@ load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 gemini = genai.Client(api_key=GEMINI_API_KEY)
 
-UPLOAD_DIR = Path("uploads")
-UPLOAD_DIR.mkdir(exist_ok=True)
-
 STATIC_DIR = Path("static")
 STATIC_DIR.mkdir(exist_ok=True)
 
@@ -48,35 +45,19 @@ templates = Jinja2Templates(directory="templates")
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def extract_text_from_pptx(filepath: Path) -> tuple[str, str]:
-    """Return (filename_stem, full_slide_text)."""
-    prs = Presentation(filepath)
-    lines: list[str] = []
-    for slide_num, slide in enumerate(prs.slides, start=1):
-        slide_lines: list[str] = []
-        for shape in slide.shapes:
-            if shape.has_text_frame:
-                for para in shape.text_frame.paragraphs:
-                    text = para.text.strip()
-                    if text:
-                        slide_lines.append(text)
-        if slide_lines:
-            lines.append(f"--- Slide {slide_num} ---")
-            lines.extend(slide_lines)
-    return filepath.stem, "\n".join(lines)
-
-
 TEACHER_GUIDE_PROMPT = """\
 You are a professional curriculum designer.
 
-Generate a complete Teacher Guide in clean semantic HTML format.
+The attached file is a PowerPoint presentation (.pptx).
+Analyze ALL slides in the presentation and generate a complete Teacher Guide
+in clean semantic HTML format.
 
 IMPORTANT RULES:
 - Return ONLY HTML.
-- Do NOT wrap in markdown.
-- Do NOT add explanations.
+- Do NOT wrap in markdown code fences.
+- Do NOT add explanations or preamble.
 - Use <h1>, <h2>, <h3>, <p>, <ul>, <li>, <strong>.
-- Follow the exact hierarchy provided below.
+- Follow the exact structure below.
 
 Structure:
 
@@ -114,23 +95,68 @@ Structure:
 <h2>Bonus Activities</h2>
 <p>...</p>
 
-Use clear academic language similar to an official Teacher Guide.
+Use clear academic language appropriate for an official Teacher Guide.
 Audience: Write for TEACHERS, not students.
-
-FILE NAME: {file_name}
-
-Session content:
-{slide_text}
 """
 
 
-def generate_teacher_guide(file_name: str, slide_text: str) -> str:
-    """Call Gemini with exponential backoff retry on 429, return HTML string."""
-    prompt = TEACHER_GUIDE_PROMPT.format(
-        file_name=file_name,
-        slide_text=slide_text,
+def _slides_file_id(link: str) -> str:
+    """Extract the presentation file ID from a Google Slides URL.
+
+    Handles patterns like:
+      https://docs.google.com/presentation/d/FILE_ID/edit
+      https://docs.google.com/presentation/d/FILE_ID/view
+    """
+    m = re.search(r"/presentation/d/([a-zA-Z0-9_-]+)", link)
+    if m:
+        return m.group(1)
+    raise ValueError(
+        "Could not extract a presentation ID from the link. "
+        "Please paste a standard Google Slides share/edit URL, e.g.:\n"
+        "https://docs.google.com/presentation/d/FILE_ID/edit"
     )
 
+
+def _download_slides_pptx(file_id: str) -> bytes:
+    """Download a Google Slides presentation as PPTX.
+
+    Uses requests so that Google's redirect chain and cookies are handled
+    correctly even for large files. Validates the response is actually a
+    PPTX and not an HTML auth/error page.
+    """
+    url = f"https://docs.google.com/presentation/d/{file_id}/export/pptx"
+    try:
+        resp = http_requests.get(
+            url,
+            timeout=90,
+            allow_redirects=True,
+            headers={"User-Agent": "Mozilla/5.0"},
+        )
+        resp.raise_for_status()
+    except http_requests.exceptions.Timeout:
+        raise RuntimeError(
+            "Timed out while downloading the presentation. "
+            "The file may be very large — try again or check your connection."
+        )
+    except http_requests.exceptions.HTTPError as exc:
+        raise RuntimeError(
+            f"Google returned HTTP {exc.response.status_code} when exporting the presentation. "
+            "Make sure the presentation is set to 'Anyone with the link can view'."
+        ) from exc
+
+    content_type = resp.headers.get("content-type", "")
+    if "html" in content_type.lower():
+        raise RuntimeError(
+            "Google returned a sign-in page instead of the PPTX file. "
+            "The presentation must be publicly shared: "
+            "Share → Anyone with the link → Viewer."
+        )
+
+    return resp.content
+
+
+def _call_gemini_with_retry(uploaded_file) -> str:
+    """Send an already-uploaded Gemini file + prompt, with exponential backoff on 429."""
     max_retries = 4
     delay = 10
     last_exc: Exception | None = None
@@ -139,10 +165,9 @@ def generate_teacher_guide(file_name: str, slide_text: str) -> str:
         try:
             response = gemini.models.generate_content(
                 model="gemini-2.0-flash-lite",
-                contents=prompt,
+                contents=[uploaded_file, TEACHER_GUIDE_PROMPT],
             )
             raw = response.text.strip()
-            # Strip accidental markdown fences
             raw = re.sub(r"^```(?:html)?\s*", "", raw, flags=re.IGNORECASE)
             raw = re.sub(r"\s*```$", "", raw)
             return raw
@@ -150,7 +175,9 @@ def generate_teacher_guide(file_name: str, slide_text: str) -> str:
             last_exc = exc
             err_str = str(exc)
             if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
-                retry_match = re.search(r"retry[\s_-]?(?:in|delay)[:\s]+([\d.]+)s", err_str, re.IGNORECASE)
+                retry_match = re.search(
+                    r"retry[\s_-]?(?:in|delay)[:\s]+([\d.]+)s", err_str, re.IGNORECASE
+                )
                 suggested = float(retry_match.group(1)) if retry_match else delay
                 wait = max(suggested, delay)
                 if attempt < max_retries - 1:
@@ -165,6 +192,33 @@ def generate_teacher_guide(file_name: str, slide_text: str) -> str:
             raise
 
     raise last_exc
+
+
+def generate_from_slides_link(slides_link: str) -> tuple[str, str]:
+    """Export PPTX from Google Slides, upload to Gemini, return (html, file_name)."""
+    file_id = _slides_file_id(slides_link)
+    pptx_bytes = _download_slides_pptx(file_id)
+
+    uploaded = gemini.files.upload(
+        file=io.BytesIO(pptx_bytes),
+        config={
+            "mime_type": (
+                "application/vnd.openxmlformats-officedocument"
+                ".presentationml.presentation"
+            ),
+            "display_name": file_id,
+        },
+    )
+
+    try:
+        html = _call_gemini_with_retry(uploaded)
+    finally:
+        try:
+            gemini.files.delete(name=uploaded.name)
+        except Exception:
+            pass
+
+    return html, file_id
 
 
 # ── PDF Styles ────────────────────────────────────────────────────────────────
@@ -274,9 +328,7 @@ def html_to_platypus(html_content: str, styles: dict) -> list:
                         _, b64data = src.split(",", 1)
                         img_bytes = base64.b64decode(b64data)
                     else:
-                        import urllib.request
-                        with urllib.request.urlopen(src) as resp:
-                            img_bytes = resp.read()
+                        img_bytes = http_requests.get(src, timeout=15).content
                     from PIL import Image as PILImage
                     pil = PILImage.open(io.BytesIO(img_bytes))
                     orig_w, orig_h = pil.size
@@ -365,9 +417,7 @@ def html_to_platypus(html_content: str, styles: dict) -> list:
                     _, b64data = src.split(',', 1)
                     img_bytes = base64.b64decode(b64data)
                 else:
-                    import urllib.request
-                    with urllib.request.urlopen(src) as resp:
-                        img_bytes = resp.read()
+                    img_bytes = http_requests.get(src, timeout=15).content
                 from PIL import Image as PILImage
                 pil = PILImage.open(io.BytesIO(img_bytes))
                 orig_w, orig_h = pil.size
@@ -398,29 +448,23 @@ async def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 
-@app.post("/upload")
-async def upload(file: UploadFile = File(...)):
-    if not file.filename.lower().endswith(".pptx"):
-        return JSONResponse(status_code=400, content={"error": "Please upload a valid .pptx file."})
+class SlidesLinkRequest(BaseModel):
+    slides_link: str
 
-    temp_path = UPLOAD_DIR / f"{uuid.uuid4()}_{file.filename}"
+
+@app.post("/generate-from-link")
+async def generate_from_link(body: SlidesLinkRequest):
     try:
-        with temp_path.open("wb") as f:
-            shutil.copyfileobj(file.file, f)
-
-        file_name, slide_text = extract_text_from_pptx(temp_path)
-
-        if not slide_text.strip():
-            return JSONResponse(status_code=422, content={"error": "No readable text found in the uploaded PPTX."})
-
-        guide_html = generate_teacher_guide(file_name, slide_text)
-        return JSONResponse(content={"html": guide_html, "file_name": file_name})
-
+        # Run the blocking download + Gemini calls in a thread so the
+        # async event loop is not frozen during the operation.
+        html, file_name = await asyncio.to_thread(
+            generate_from_slides_link, body.slides_link
+        )
+        return JSONResponse(content={"html": html, "file_name": file_name})
+    except ValueError as exc:
+        return JSONResponse(status_code=400, content={"error": str(exc)})
     except Exception as exc:
         return JSONResponse(status_code=500, content={"error": str(exc)})
-    finally:
-        if temp_path.exists():
-            temp_path.unlink()
 
 
 @app.get("/demo")

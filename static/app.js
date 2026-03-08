@@ -3,7 +3,6 @@ const fileInput     = document.getElementById('file-input');
 const fileLabel     = document.getElementById('file-label');
 const dropzone      = document.getElementById('dropzone');
 const generateBtn   = document.getElementById('generate-btn');
-const demoBtn       = document.getElementById('demo-btn');
 const pdfBtn        = document.getElementById('pdf-btn');
 const spinner       = document.getElementById('spinner');
 const spinnerMsg    = document.getElementById('spinner-msg');
@@ -78,7 +77,7 @@ dropzone.addEventListener('drop', e => {
 /* ── Spinner ──────────────────────────────────────────────────────── */
 const msgs = [
   'Uploading file...',
-  'Extracting slide text...',
+  'Extracting PDF text...',
   'Sending to Gemini AI...',
   'Generating Teacher Guide...',
   'Almost done...'
@@ -118,29 +117,12 @@ function showError(msg) {
   errorBox.classList.add('show');
 }
 
-/* ── Demo ────────────────────────────────────────────────────────── */
-demoBtn.addEventListener('click', async () => {
-  errorBox.classList.remove('show');
-  demoBtn.disabled = true;
-  startSpinner();
-  try {
-    const res  = await fetch('/demo');
-    const data = await res.json();
-    populateEditor(data.html, data.file_name);
-  } catch (err) {
-    showError('Demo failed: ' + err.message);
-  } finally {
-    stopSpinner();
-    demoBtn.disabled = false;
-  }
-});
-
 /* ── Generate ─────────────────────────────────────────────────────── */
 generateBtn.addEventListener('click', async () => {
   errorBox.classList.remove('show');
 
   if (!fileInput.files[0]) {
-    showError('Please select a .pptx file first.');
+    showError('Please select a .pdf file first.');
     return;
   }
 

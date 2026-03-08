@@ -12,8 +12,8 @@ from fastapi import FastAPI, File, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+import pdfplumber
 from google import genai
-from pptx import Presentation
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_LEFT
 from reportlab.lib.pagesizes import A4
@@ -41,28 +41,22 @@ STATIC_DIR = Path("static")
 STATIC_DIR.mkdir(exist_ok=True)
 
 # ── App ───────────────────────────────────────────────────────────────────────
-app = FastAPI(title="PPTX → Teacher Guide Generator")
+app = FastAPI(title="PDF → Teacher Guide Generator")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def extract_text_from_pptx(filepath: Path) -> tuple[str, str]:
-    """Return (filename_stem, full_slide_text)."""
-    prs = Presentation(filepath)
+def extract_text_from_pdf(filepath: Path) -> tuple[str, str]:
+    """Return (filename_stem, full_page_text)."""
     lines: list[str] = []
-    for slide_num, slide in enumerate(prs.slides, start=1):
-        slide_lines: list[str] = []
-        for shape in slide.shapes:
-            if shape.has_text_frame:
-                for para in shape.text_frame.paragraphs:
-                    text = para.text.strip()
-                    if text:
-                        slide_lines.append(text)
-        if slide_lines:
-            lines.append(f"--- Slide {slide_num} ---")
-            lines.extend(slide_lines)
+    with pdfplumber.open(filepath) as pdf:
+        for page_num, page in enumerate(pdf.pages, start=1):
+            text = page.extract_text()
+            if text and text.strip():
+                lines.append(f"--- Page {page_num} ---")
+                lines.append(text.strip())
     return filepath.stem, "\n".join(lines)
 
 
@@ -400,18 +394,18 @@ async def index(request: Request):
 
 @app.post("/upload")
 async def upload(file: UploadFile = File(...)):
-    if not file.filename.lower().endswith(".pptx"):
-        return JSONResponse(status_code=400, content={"error": "Please upload a valid .pptx file."})
+    if not file.filename.lower().endswith(".pdf"):
+        return JSONResponse(status_code=400, content={"error": "Please upload a valid .pdf file."})
 
     temp_path = UPLOAD_DIR / f"{uuid.uuid4()}_{file.filename}"
     try:
         with temp_path.open("wb") as f:
             shutil.copyfileobj(file.file, f)
 
-        file_name, slide_text = extract_text_from_pptx(temp_path)
+        file_name, slide_text = extract_text_from_pdf(temp_path)
 
         if not slide_text.strip():
-            return JSONResponse(status_code=422, content={"error": "No readable text found in the uploaded PPTX."})
+            return JSONResponse(status_code=422, content={"error": "No readable text found in the uploaded PDF."})
 
         guide_html = generate_teacher_guide(file_name, slide_text)
         return JSONResponse(content={"html": guide_html, "file_name": file_name})

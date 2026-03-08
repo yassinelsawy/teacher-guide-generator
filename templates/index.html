@@ -8,7 +8,7 @@
   <!-- Quill snow theme -->
   <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet" />
 
-  <link rel="stylesheet" href="/static/style.css?v=2" />
+  <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
 <div class="container">
@@ -16,29 +16,31 @@
   <!-- Header -->
   <div class="header">
     <h1>&#128196; Teacher Guide Generator</h1>
-    <p>Paste a public Google Slides link &rarr; Gemini reads the slides &rarr; Edit &amp; export</p>
+    <p>Upload a PPTX &rarr; Gemini generates a structured guide &rarr; Edit &amp; export</p>
   </div>
 
-  <!-- Input Card -->
+  <!-- Upload Card -->
   <div class="card">
-    <label for="drive-link-input" style="display:block;font-weight:600;margin-bottom:.5rem;">
-      Google Slides Link <small style="font-weight:400;color:#6b7280;">(must be publicly shared)</small>
-    </label>
-    <input
-      type="url"
-      id="drive-link-input"
-      placeholder="https://docs.google.com/presentation/d/…/edit"
-      style="width:100%;box-sizing:border-box;padding:.65rem .9rem;border:1.5px solid #d1d5db;border-radius:8px;font-size:.95rem;outline:none;margin-bottom:1rem;"
-    />
+    <div class="dropzone" id="dropzone">
+      <input type="file" id="file-input" accept=".pptx" />
+      <div class="dropzone-icon">&#128193;</div>
+      <p><strong>Click to browse</strong> or drag &amp; drop here</p>
+      <small>Accepted: .pptx files only</small>
+      <span id="file-label"></span>
+    </div>
 
     <div class="alert alert-error" id="error-box"></div>
 
     <div class="spinner-wrap" id="spinner">
       <div class="spinner"></div>
-      <p class="spinner-msg" id="spinner-msg">Sending to Gemini AI...</p>
+      <p class="spinner-msg" id="spinner-msg">Uploading file...</p>
     </div>
 
     <button class="btn btn-full" id="generate-btn">&#128640; Generate Teacher Guide</button>
+
+    <div style="text-align:center; margin-top:.8rem;">
+      <button class="btn btn-demo" id="demo-btn">&#127774; Try Demo (no upload needed)</button>
+    </div>
   </div>
 
   <!-- Editor (shown after generation) -->
@@ -68,6 +70,6 @@
 <!-- /container -->
 
 <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
-<script src="/static/app.js?v=3"></script>
+<script src="/static/app.js"></script>
 </body>
 </html>

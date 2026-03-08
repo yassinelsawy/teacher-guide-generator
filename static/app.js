@@ -1,6 +1,9 @@
 ﻿/* ── DOM refs ─────────────────────────────────────────────────────── */
-const driveLinkInput = document.getElementById('drive-link-input');
+const fileInput     = document.getElementById('file-input');
+const fileLabel     = document.getElementById('file-label');
+const dropzone      = document.getElementById('dropzone');
 const generateBtn   = document.getElementById('generate-btn');
+const demoBtn       = document.getElementById('demo-btn');
 const pdfBtn        = document.getElementById('pdf-btn');
 const spinner       = document.getElementById('spinner');
 const spinnerMsg    = document.getElementById('spinner-msg');
@@ -53,12 +56,31 @@ function imagePickerHandler() {
 /* Keep track of current file name for PDF export */
 let currentFileName = 'teacher_guide';
 
+/* ── File selection ───────────────────────────────────────────────── */
+fileInput.addEventListener('change', () => {
+  fileLabel.textContent = fileInput.files[0]?.name || '';
+});
+
+dropzone.addEventListener('dragover', e => {
+  e.preventDefault();
+  dropzone.classList.add('drag-over');
+});
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropzone.classList.remove('drag-over');
+  if (e.dataTransfer.files.length) {
+    fileInput.files = e.dataTransfer.files;
+    fileLabel.textContent = e.dataTransfer.files[0].name;
+  }
+});
+
 /* ── Spinner ──────────────────────────────────────────────────────── */
 const msgs = [
-  'Sending link to Gemini AI...',
-  'Gemini is reading the presentation...',
+  'Uploading file...',
+  'Extracting slide text...',
+  'Sending to Gemini AI...',
   'Generating Teacher Guide...',
-  'Structuring content...',
   'Almost done...'
 ];
 
@@ -96,29 +118,40 @@ function showError(msg) {
   errorBox.classList.add('show');
 }
 
+/* ── Demo ────────────────────────────────────────────────────────── */
+demoBtn.addEventListener('click', async () => {
+  errorBox.classList.remove('show');
+  demoBtn.disabled = true;
+  startSpinner();
+  try {
+    const res  = await fetch('/demo');
+    const data = await res.json();
+    populateEditor(data.html, data.file_name);
+  } catch (err) {
+    showError('Demo failed: ' + err.message);
+  } finally {
+    stopSpinner();
+    demoBtn.disabled = false;
+  }
+});
+
 /* ── Generate ─────────────────────────────────────────────────────── */
 generateBtn.addEventListener('click', async () => {
   errorBox.classList.remove('show');
 
-  const link = driveLinkInput.value.trim();
-  if (!link) {
-    showError('Please paste a Google Drive link first.');
+  if (!fileInput.files[0]) {
+    showError('Please select a .pptx file first.');
     return;
   }
-  if (!link.includes('docs.google.com/presentation')) {
-    showError('That does not look like a Google Slides link.');
-    return;
-  }
+
+  const fd = new FormData();
+  fd.append('file', fileInput.files[0]);
 
   generateBtn.disabled = true;
   startSpinner();
 
   try {
-    const res  = await fetch('/generate-from-link', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ slides_link: link }),
-    });
+    const res  = await fetch('/upload', { method: 'POST', body: fd });
     const data = await res.json();
 
     if (!res.ok || data.error) {

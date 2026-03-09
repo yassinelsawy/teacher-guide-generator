@@ -3,57 +3,15 @@ const fileInput     = document.getElementById('file-input');
 const fileLabel     = document.getElementById('file-label');
 const dropzone      = document.getElementById('dropzone');
 const generateBtn   = document.getElementById('generate-btn');
-const pdfBtn        = document.getElementById('pdf-btn');
 const spinner       = document.getElementById('spinner');
 const spinnerMsg    = document.getElementById('spinner-msg');
 const errorBox      = document.getElementById('error-box');
-const editorSection = document.getElementById('editor-section');
-const guideTitle    = document.getElementById('guide-title');
+const successSection = document.getElementById('success-section');
+const successTitle  = document.getElementById('success-title');
+const openEditorBtn = document.getElementById('open-editor-btn');
 
-/* ── Quill setup ──────────────────────────────────────────────────── */
-const quill = new Quill('#quill-editor', {
-  theme: 'snow',
-  modules: {
-    toolbar: {
-      container: [
-        [{ header: [1, 2, 3, false] }],
-        ['bold', 'italic', 'underline'],
-        [{ color: [] }, { background: [] }],
-        [{ list: 'ordered' }, { list: 'bullet' }],
-        [{ indent: '-1' }, { indent: '+1' }],
-        ['link', 'image'],
-        ['clean']
-      ],
-      handlers: {
-        image: imagePickerHandler
-      }
-    }
-  }
-});
-
-/* ── Custom image handler — opens file picker, embeds as base64 ───── */
-function imagePickerHandler() {
-  const input = document.createElement('input');
-  input.setAttribute('type', 'file');
-  input.setAttribute('accept', 'image/png, image/jpeg, image/gif, image/webp');
-  input.click();
-
-  input.addEventListener('change', () => {
-    const file = input.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = e => {
-      const range = quill.getSelection(true);
-      quill.insertEmbed(range.index, 'image', e.target.result);
-      quill.setSelection(range.index + 1);
-    };
-    reader.readAsDataURL(file);
-  });
-}
-
-/* Keep track of current file name for PDF export */
-let currentFileName = 'teacher_guide';
+/* ── State ────────────────────────────────────────────────────────── */
+let currentToken = null;
 
 /* ── File selection ───────────────────────────────────────────────── */
 fileInput.addEventListener('change', () => {
@@ -82,7 +40,6 @@ const msgs = [
   'Generating Teacher Guide...',
   'Almost done...'
 ];
-
 let msgTimer;
 
 function startSpinner() {
@@ -100,26 +57,27 @@ function stopSpinner() {
   spinner.classList.remove('active');
 }
 
-/* ── Populate Quill editor ────────────────────────────────────────── */
-function populateEditor(html, fileName) {
-  currentFileName = fileName || 'teacher_guide';
-  guideTitle.textContent = 'Teacher Guide — ' + currentFileName;
-
-  quill.clipboard.dangerouslyPasteHTML(html);
-
-  editorSection.classList.add('show');
-  editorSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
 /* ── Error helper ─────────────────────────────────────────────────── */
 function showError(msg) {
   errorBox.textContent = msg;
   errorBox.classList.add('show');
 }
 
+/* ── Open editor helper ───────────────────────────────────────────── */
+function openEditor() {
+  if (!currentToken) return;
+  // Try port 5173 first (Vite default), fall back to 5174
+  const url5173 = `http://localhost:5173/?token=${currentToken}`;
+  const url5174 = `http://localhost:5174/?token=${currentToken}`;
+  fetch('http://localhost:5173/', { mode: 'no-cors' })
+    .then(() => window.open(url5173, '_blank'))
+    .catch(() => window.open(url5174, '_blank'));
+}
+
 /* ── Generate ─────────────────────────────────────────────────────── */
 generateBtn.addEventListener('click', async () => {
   errorBox.classList.remove('show');
+  successSection.classList.remove('show');
 
   if (!fileInput.files[0]) {
     showError('Please select a .pdf file first.');
@@ -141,7 +99,14 @@ generateBtn.addEventListener('click', async () => {
       return;
     }
 
-    populateEditor(data.html, data.file_name);
+    currentToken = data.token;
+
+    // Show success card
+    successTitle.textContent = `"${data.file_name.replace(/_/g, ' ')}" generated!`;
+    successSection.classList.add('show');
+
+    // Auto-open the editor after a short delay
+    setTimeout(openEditor, 800);
 
   } catch (err) {
     showError('Network error: ' + err.message);
@@ -151,38 +116,7 @@ generateBtn.addEventListener('click', async () => {
   }
 });
 
-/* ── Export PDF ───────────────────────────────────────────────────── */
-pdfBtn.addEventListener('click', async () => {
-  const html = quill.root.innerHTML;
-
-  pdfBtn.disabled = true;
-  pdfBtn.textContent = 'Generating PDF...';
-
-  try {
-    const res = await fetch('/export-pdf', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ html, file_name: currentFileName })
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: `PDF generation failed (HTTP ${res.status}).` }));
-      showError(err.error || `PDF generation failed (HTTP ${res.status}).`);
-      return;
-    }
-
-    const blob = await res.blob();
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href     = url;
-    a.download = currentFileName + '.pdf';
-    a.click();
-    URL.revokeObjectURL(url);
-
-  } catch (err) {
-    showError('PDF export failed: ' + err.message);
-  } finally {
-    pdfBtn.disabled = false;
-    pdfBtn.innerHTML = '&#128462; Export PDF';
-  }
-});
+/* ── Manual "Open in Editor" button ──────────────────────────────── */
+if (openEditorBtn) {
+  openEditorBtn.addEventListener('click', openEditor);
+}

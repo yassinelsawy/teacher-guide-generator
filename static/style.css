@@ -101,6 +101,39 @@ body {
   margin-top: .5rem;
 }
 
+.btn-editor {
+  background: linear-gradient(135deg, #0891b2, #6366f1);
+}
+
+/* ── Success card ─────────────────────────────────────────────────── */
+#success-section { display: none; }
+#success-section.show { display: block; }
+
+.success-card {
+  text-align: center;
+  padding: 2.5rem 2rem;
+}
+.success-icon {
+  width: 60px; height: 60px;
+  background: #d1fae5;
+  color: #059669;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.8rem;
+  margin: 0 auto 1rem;
+}
+.success-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin-bottom: .4rem;
+}
+.success-sub {
+  color: #718096;
+  font-size: .9rem;
+  margin-bottom: 1.2rem;
+}
+
 .btn-row {
   display: flex;
   gap: .8rem;

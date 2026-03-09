@@ -4,10 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Teacher Guide Generator</title>
-
-  <!-- Quill snow theme -->
-  <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet" />
-
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
@@ -16,7 +12,7 @@
   <!-- Header -->
   <div class="header">
     <h1>&#128196; Teacher Guide Generator</h1>
-    <p>Upload a PDF &rarr; Gemini generates a structured guide &rarr; Edit &amp; export</p>
+    <p>Upload a PDF &rarr; Gemini generates a structured guide &rarr; Opens in the editor automatically</p>
   </div>
 
   <!-- Upload Card -->
@@ -39,33 +35,20 @@
     <button class="btn btn-full" id="generate-btn">Generate Teacher Guide</button>
   </div>
 
-  <!-- Editor (shown after generation) -->
-  <div id="editor-section">
-    <div class="card">
-
-      <div class="guide-meta">
-        <div>
-          <div class="guide-meta-title" id="guide-title">Teacher Guide</div>
-          <div class="guide-meta-sub">All content is editable. Use the toolbar to format text.</div>
-        </div>
-        <div class="btn-row" style="margin-top:0; gap:.6rem;">
-          <button class="btn btn-pdf" id="pdf-btn">&#128462; Export PDF</button>
-        </div>
-      </div>
-
-      <!-- Quill editor container -->
-      <div id="quill-editor"></div>
-
+  <!-- Success card (shown after generation) -->
+  <div id="success-section">
+    <div class="card success-card">
+      <div class="success-icon">&#10003;</div>
+      <div class="success-title" id="success-title">Teacher Guide Generated!</div>
+      <p class="success-sub">Opening the structured editor&hellip;</p>
+      <button class="btn" id="open-editor-btn">&#9998; Open in Editor</button>
     </div>
   </div>
-  <!-- /editor-section -->
 
   <p class="footer">Powered by FastAPI &middot; Gemini 2.0 Flash &middot; ReportLab</p>
 
 </div>
-<!-- /container -->
 
-<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
 <script src="/static/app.js"></script>
 </body>
 </html>

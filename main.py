@@ -36,7 +36,15 @@ load_dotenv()
 
 # ── Config ────────────────────────────────────────────────────────────────────
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+GEMINI_MODEL_FALLBACKS = [
+    m.strip()
+    for m in os.getenv(
+        "GEMINI_MODEL_FALLBACKS",
+        "gemini-2.0-flash,gemini-1.5-flash,gemini-1.5-pro",
+    ).split(",")
+    if m.strip()
+]
 gemini = genai.Client(api_key=GEMINI_API_KEY)
 
 UPLOAD_DIR = Path("/tmp/uploads") if os.getenv("VERCEL") else Path("uploads")
@@ -154,46 +162,56 @@ def generate_teacher_guide(file_name: str, slide_text: str) -> dict:
     max_retries = 4
     delay = 10
     last_exc: Exception | None = None
+    model_candidates = [GEMINI_MODEL] + [m for m in GEMINI_MODEL_FALLBACKS if m != GEMINI_MODEL]
+    tried_models: list[str] = []
 
-    for attempt in range(max_retries):
-        try:
-            response = gemini.models.generate_content(
-                model=GEMINI_MODEL,
-                contents=prompt,
-            )
-            raw = response.text.strip()
-            # Strip accidental markdown fences
-            raw = re.sub(r"^```(?:json)?\s*", "", raw, flags=re.IGNORECASE)
-            raw = re.sub(r"\s*```$", "", raw)
-            match = re.search(r'\{.*\}', raw, re.DOTALL)
-            if not match:
-                raise ValueError("Gemini did not return a JSON object")
-            return json.loads(match.group(0))
-        except Exception as exc:
-            last_exc = exc
-            err_str = str(exc)
-            if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
-                retry_match = re.search(r"retry[\s_-]?(?:in|delay)[:\s]+([\d.]+)s", err_str, re.IGNORECASE)
-                suggested = float(retry_match.group(1)) if retry_match else delay
-                wait = max(suggested, delay)
-                if attempt < max_retries - 1:
-                    time.sleep(wait)
-                    delay = wait * 2
-                    continue
-                raise RuntimeError(
-                    "Gemini API daily quota exhausted for this API key. "
-                    "Please add a new GEMINI_API_KEY to your .env file or enable billing at "
-                    "https://aistudio.google.com/apikey"
-                ) from exc
-            if "NOT_FOUND" in err_str or "no longer available" in err_str.lower():
-                raise RuntimeError(
-                    f"Configured model '{GEMINI_MODEL}' is unavailable. "
-                    "Set GEMINI_MODEL in .env to a currently available model, "
-                    "for example: gemini-2.0-flash"
-                ) from exc
-            raise
+    for model_name in model_candidates:
+        tried_models.append(model_name)
+        per_model_delay = delay
 
-    raise last_exc
+        for attempt in range(max_retries):
+            try:
+                response = gemini.models.generate_content(
+                    model=model_name,
+                    contents=prompt,
+                )
+                raw = response.text.strip()
+                # Strip accidental markdown fences
+                raw = re.sub(r"^```(?:json)?\s*", "", raw, flags=re.IGNORECASE)
+                raw = re.sub(r"\s*```$", "", raw)
+                match = re.search(r'\{.*\}', raw, re.DOTALL)
+                if not match:
+                    raise ValueError("Gemini did not return a JSON object")
+                return json.loads(match.group(0))
+            except Exception as exc:
+                last_exc = exc
+                err_str = str(exc)
+
+                if "NOT_FOUND" in err_str or "no longer available" in err_str.lower():
+                    # Try the next fallback model.
+                    break
+
+                if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
+                    retry_match = re.search(r"retry[\s_-]?(?:in|delay)[:\s]+([\d.]+)s", err_str, re.IGNORECASE)
+                    suggested = float(retry_match.group(1)) if retry_match else per_model_delay
+                    wait = max(suggested, per_model_delay)
+                    if attempt < max_retries - 1:
+                        time.sleep(wait)
+                        per_model_delay = wait * 2
+                        continue
+                    raise RuntimeError(
+                        "Gemini API daily quota exhausted for this API key. "
+                        "Please add a new GEMINI_API_KEY to your .env file or enable billing at "
+                        "https://aistudio.google.com/apikey"
+                    ) from exc
+
+                raise
+
+    raise RuntimeError(
+        "No available Gemini model could be used for this API key. "
+        f"Tried: {', '.join(tried_models)}. "
+        "Set GEMINI_MODEL or GEMINI_MODEL_FALLBACKS in .env to models available in your account."
+    ) from last_exc
 
 
 def dict_to_teacher_guide(data: dict, file_name: str) -> dict:

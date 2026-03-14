@@ -96,6 +96,9 @@ generateBtn.addEventListener('click', async () => {
     }
 
     currentToken = data.token;
+    if (data.guide && currentToken) {
+      sessionStorage.setItem(`pending-guide:${currentToken}`, JSON.stringify(data.guide));
+    }
 
     // Show success card
     successTitle.textContent = `"${data.file_name.replace(/_/g, ' ')}" generated!`;

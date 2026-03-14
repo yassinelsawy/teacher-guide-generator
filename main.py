@@ -5,6 +5,7 @@ import os
 import re
 import secrets
 import shutil
+import tempfile
 import time
 import uuid
 from pathlib import Path
@@ -37,8 +38,8 @@ load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 gemini = genai.Client(api_key=GEMINI_API_KEY)
 
-UPLOAD_DIR = Path("uploads")
-UPLOAD_DIR.mkdir(exist_ok=True)
+UPLOAD_DIR = Path("/tmp/uploads") if os.getenv("VERCEL") else Path("uploads")
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 STATIC_DIR = Path("static")
 STATIC_DIR.mkdir(exist_ok=True)
@@ -651,7 +652,7 @@ async def upload(file: UploadFile = File(...)):
         guide = dict_to_teacher_guide(gemini_data, file_name)
         token = secrets.token_urlsafe(16)
         pending_guides[token] = guide
-        return JSONResponse(content={"token": token, "file_name": file_name})
+        return JSONResponse(content={"token": token, "file_name": file_name, "guide": guide})
 
     except Exception as exc:
         return JSONResponse(status_code=500, content={"error": str(exc)})

@@ -17,6 +17,7 @@ import { createDefaultGuide, guideToExportJSON, type TeacherGuide } from '@/type
 
 const STORAGE_KEY_CHECKED = '__tge_loaded'
 const API_BASE = import.meta.env.DEV ? '/api' : ''
+const PENDING_GUIDE_KEY_PREFIX = 'pending-guide:'
 
 function initGuide(): TeacherGuide {
   // If starting with a ?token param, show a blank guide — the token fetch will overwrite it
@@ -47,6 +48,24 @@ export default function App() {
     const params = new URLSearchParams(window.location.search)
     const token = params.get('token')
     if (!token) return
+
+    const pendingKey = `${PENDING_GUIDE_KEY_PREFIX}${token}`
+    const pendingRaw = sessionStorage.getItem(pendingKey)
+    if (pendingRaw) {
+      try {
+        const pending = JSON.parse(pendingRaw) as TeacherGuide
+        setGuide(pending)
+        localStorage.setItem('teacher-guide-v1', JSON.stringify(pending))
+        sessionStorage.removeItem(pendingKey)
+      } catch (error) {
+        console.error(error)
+      } finally {
+        setIsImporting(false)
+        window.history.replaceState({}, '', window.location.pathname)
+      }
+      return
+    }
+
     fetch(`${API_BASE}/guide/${token}`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)

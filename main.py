@@ -1,6 +1,7 @@
 import base64
 import io
 import json
+import logging
 import os
 import re
 import secrets
@@ -33,6 +34,7 @@ from reportlab.platypus import (
 )
 
 load_dotenv()
+logger = logging.getLogger(__name__)
 
 # ── Config ────────────────────────────────────────────────────────────────────
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -668,7 +670,8 @@ async def upload(file: UploadFile = File(...)):
         with temp_path.open("wb") as f:
             shutil.copyfileobj(file.file, f)
 
-        file_name, slide_text = extract_text_from_pdf(temp_path)
+        _, slide_text = extract_text_from_pdf(temp_path)
+        file_name = Path(file.filename).stem if file.filename else temp_path.stem
 
         if not slide_text.strip():
             return JSONResponse(status_code=422, content={"error": "No readable text found in the uploaded PDF."})
@@ -680,7 +683,11 @@ async def upload(file: UploadFile = File(...)):
         return JSONResponse(content={"token": token, "file_name": file_name, "guide": guide})
 
     except Exception as exc:
-        return JSONResponse(status_code=500, content={"error": str(exc)})
+        logger.exception("Guide generation failed for file '%s'", file.filename)
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Failed to generate the teacher guide. Please try again."},
+        )
     finally:
         if temp_path.exists():
             temp_path.unlink()
@@ -726,8 +733,11 @@ async def export_pdf(request: Request):
     try:
         flowables = html_to_platypus(html_content, styles)
     except Exception as exc:
-        import traceback; traceback.print_exc()
-        return JSONResponse(status_code=500, content={"error": f"HTML parsing failed: {exc}"})
+        logger.exception("PDF export failed during HTML parsing")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Failed to prepare PDF content."},
+        )
 
     if not flowables:
         flowables = [Paragraph("No content to export.", styles["body"])]
@@ -735,8 +745,11 @@ async def export_pdf(request: Request):
     try:
         doc.build(flowables)
     except Exception as exc:
-        import traceback; traceback.print_exc()
-        return JSONResponse(status_code=500, content={"error": f"PDF build failed: {exc}"})
+        logger.exception("PDF export failed during document build")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Failed to export PDF."},
+        )
 
     buffer.seek(0)
 

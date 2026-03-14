@@ -14,7 +14,7 @@ A FastAPI web app that converts PDF lesson content into structured, editable Tea
 ## Tech Stack
 
 - **Backend**: FastAPI + Python
-- **AI**: Google Gemini (`gemini-2.0-flash-lite`) via `google-genai`
+- **AI**: Google Gemini (`gemini-2.0-flash` by default) via `google-genai`
 - **PDF parsing**: `pdfplumber`
 - **Editor**: React + TypeScript + Vite + Tiptap
 - **PDF export**: ReportLab
@@ -51,6 +51,8 @@ copy .env.example .env
 ```
 
 Get a free key at https://aistudio.google.com/apikey
+
+Optional: set a specific Gemini model with `GEMINI_MODEL` (default is `gemini-2.0-flash`).
 
 ### 5. Build the editor bundle (required for one-server mode)
 

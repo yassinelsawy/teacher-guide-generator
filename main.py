@@ -36,6 +36,7 @@ load_dotenv()
 
 # ── Config ────────────────────────────────────────────────────────────────────
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 gemini = genai.Client(api_key=GEMINI_API_KEY)
 
 UPLOAD_DIR = Path("/tmp/uploads") if os.getenv("VERCEL") else Path("uploads")
@@ -157,7 +158,7 @@ def generate_teacher_guide(file_name: str, slide_text: str) -> dict:
     for attempt in range(max_retries):
         try:
             response = gemini.models.generate_content(
-                model="gemini-2.0-flash-lite",
+                model=GEMINI_MODEL,
                 contents=prompt,
             )
             raw = response.text.strip()
@@ -183,6 +184,12 @@ def generate_teacher_guide(file_name: str, slide_text: str) -> dict:
                     "Gemini API daily quota exhausted for this API key. "
                     "Please add a new GEMINI_API_KEY to your .env file or enable billing at "
                     "https://aistudio.google.com/apikey"
+                ) from exc
+            if "NOT_FOUND" in err_str or "no longer available" in err_str.lower():
+                raise RuntimeError(
+                    f"Configured model '{GEMINI_MODEL}' is unavailable. "
+                    "Set GEMINI_MODEL in .env to a currently available model, "
+                    "for example: gemini-2.0-flash"
                 ) from exc
             raise
 

@@ -66,12 +66,8 @@ function showError(msg) {
 /* ── Open editor helper ───────────────────────────────────────────── */
 function openEditor() {
   if (!currentToken) return;
-  // Try port 5173 first (Vite default), fall back to 5174
-  const url5173 = `http://localhost:5173/?token=${currentToken}`;
-  const url5174 = `http://localhost:5174/?token=${currentToken}`;
-  fetch('http://localhost:5173/', { mode: 'no-cors' })
-    .then(() => window.open(url5173, '_blank'))
-    .catch(() => window.open(url5174, '_blank'));
+  const editorUrl = `/editor?token=${encodeURIComponent(currentToken)}`;
+  window.open(editorUrl, '_blank');
 }
 
 /* ── Generate ─────────────────────────────────────────────────────── */

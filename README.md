@@ -50,13 +50,27 @@ copy .env.example .env
 
 Get a free key at https://aistudio.google.com/apikey
 
-### 5. Run the server
+### 5. Build the editor bundle (required for one-server mode)
+
+```bash
+cd editor
+npm install
+npm run build
+cd ..
+```
+
+### 6. Run the server
 
 ```bash
 uvicorn main:app --reload
 ```
 
 Open http://127.0.0.1:8000 in your browser.
+
+The upload page and editor are both served from the same FastAPI server:
+
+- Generator: `http://127.0.0.1:8000/`
+- Editor: `http://127.0.0.1:8000/editor`
 
 ## Project Structure
 

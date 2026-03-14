@@ -11,7 +11,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Request, UploadFile
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
@@ -42,6 +42,7 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 
 STATIC_DIR = Path("static")
 STATIC_DIR.mkdir(exist_ok=True)
+EDITOR_BUILD_INDEX = STATIC_DIR / "editor" / "index.html"
 
 # Temporary in-memory store for generated guides (token → guide dict)
 pending_guides: dict[str, dict] = {}
@@ -617,6 +618,20 @@ async def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 
+@app.get("/editor", response_class=HTMLResponse)
+async def editor_shell():
+    """Serve the production editor bundle from this same FastAPI server."""
+    if not EDITOR_BUILD_INDEX.exists():
+        return HTMLResponse(
+            status_code=503,
+            content=(
+                "Editor build not found. Run 'npm run build' in the 'editor' folder "
+                "before starting the backend server."
+            ),
+        )
+    return FileResponse(EDITOR_BUILD_INDEX)
+
+
 @app.post("/upload")
 async def upload(file: UploadFile = File(...)):
     if not file.filename.lower().endswith(".pdf"):
@@ -705,3 +720,9 @@ async def export_pdf(request: Request):
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{safe_name}.pdf"'},
     )
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)

@@ -16,6 +16,7 @@ import { useAutoSave, loadSaved }  from '@/hooks/useAutoSave'
 import { createDefaultGuide, guideToExportJSON, type TeacherGuide } from '@/types'
 
 const STORAGE_KEY_CHECKED = '__tge_loaded'
+const API_BASE = import.meta.env.DEV ? '/api' : ''
 
 function initGuide(): TeacherGuide {
   // If starting with a ?token param, show a blank guide — the token fetch will overwrite it
@@ -46,7 +47,7 @@ export default function App() {
     const params = new URLSearchParams(window.location.search)
     const token = params.get('token')
     if (!token) return
-    fetch(`/api/guide/${token}`)
+    fetch(`${API_BASE}/guide/${token}`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json()

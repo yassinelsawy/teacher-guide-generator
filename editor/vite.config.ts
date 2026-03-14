@@ -4,10 +4,15 @@ import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
+  base: '/static/editor/',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
+  },
+  build: {
+    outDir: '../static/editor',
+    emptyOutDir: true,
   },
   server: {
     proxy: {

@@ -1,21 +1,23 @@
 # Teacher Guide Generator
 
-A FastAPI web app that converts PowerPoint presentations into structured, editable Teacher Lesson Guides using Google Gemini AI.
+A FastAPI web app that converts PDF lesson content into structured, editable Teacher Lesson Guides using Google Gemini AI.
 
 ## Features
 
-- Upload a `.pptx` file → AI generates a full Teacher Guide
-- Editable sections: overview, objectives, preparation, lesson procedure (Initiate / Learn / Make / Share), glossary, bonus activities
-- Download the guide as a `.txt` file
-- Demo mode — try it without uploading a file
+- Upload a `.pdf` file -> AI generates a full Teacher Guide
+- Rich editor for: overview, learning outcomes, preparation, lesson procedure, glossary, and bonus activities
+- Insert images inside rich-text fields (upload from device or paste image URL)
+- Export the finished guide as PDF
+- Demo mode for quick UI preview without uploading a file
 - Gemini API quota handling with automatic retry and friendly error messages
 
 ## Tech Stack
 
 - **Backend**: FastAPI + Python
 - **AI**: Google Gemini (`gemini-2.0-flash-lite`) via `google-genai`
-- **PPTX parsing**: `python-pptx`
-- **Frontend**: Vanilla JS, HTML, CSS (no frameworks)
+- **PDF parsing**: `pdfplumber`
+- **Editor**: React + TypeScript + Vite + Tiptap
+- **PDF export**: ReportLab
 
 ## Setup
 
@@ -62,7 +64,7 @@ cd ..
 ### 6. Run the server
 
 ```bash
-uvicorn main:app --reload
+python main.py
 ```
 
 Open http://127.0.0.1:8000 in your browser.

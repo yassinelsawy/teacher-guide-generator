@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
-const STORAGE_KEY = 'teacher-guide-v1'
+const STORAGE_KEY = 'teacherGuideData'
 const DEBOUNCE_MS = 1500
 
 export function useAutoSave<T>(data: T) {
@@ -40,7 +40,11 @@ export function useAutoSave<T>(data: T) {
 export function loadSaved<T>(): T | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? (JSON.parse(raw) as T) : null
+    if (raw) return JSON.parse(raw) as T
+
+    // Backward compatibility with older builds.
+    const legacy = localStorage.getItem('teacher-guide-v1')
+    return legacy ? (JSON.parse(legacy) as T) : null
   } catch {
     return null
   }

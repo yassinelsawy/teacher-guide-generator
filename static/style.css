@@ -81,20 +81,13 @@ body {
 .btn:active { transform: scale(.97); }
 .btn:disabled { opacity: .55; cursor: not-allowed; }
 
-.btn-demo {
-  background: none;
-  border: 1.5px dashed #a3bffa;
-  border-radius: 10px;
-  color: #4f46e5;
-  font-size: .85rem;
-  font-weight: 600;
-  padding: .55rem 1.4rem;
-  cursor: pointer;
-  transition: background .2s, color .2s;
-}
-.btn-demo:hover { background: #eef2ff; }
 
-.btn-full  { width: 100%; display: block; text-align: center; }
+.btn-full  { 
+  width: 100%; 
+  display: block; 
+  text-align: center; }
+
+#generate-btn { margin-bottom: 2.5rem; }
 
 .btn-download {
   background: linear-gradient(135deg, #059669, #0891b2);

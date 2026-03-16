@@ -15,20 +15,83 @@ import { BonusActivitiesSection }  from '@/components/sections/BonusActivitiesSe
 import { useAutoSave, loadSaved }  from '@/hooks/useAutoSave'
 import { createDefaultGuide, guideToExportJSON, type TeacherGuide } from '@/types'
 
-const STORAGE_KEY_CHECKED = '__tge_loaded'
 const API_BASE = import.meta.env.DEV ? '/api' : ''
 const PENDING_GUIDE_KEY_PREFIX = 'pending-guide:'
+const GUIDE_STORAGE_KEY = 'teacherGuideData'
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function normalizeGuide(input: unknown): TeacherGuide | null {
+  if (!isRecord(input) || !isRecord(input.lessonInfo)) return null
+
+  const lessonInfo = {
+    lessonName: typeof input.lessonInfo.lessonName === 'string' ? input.lessonInfo.lessonName : '',
+    gradeLevel: typeof input.lessonInfo.gradeLevel === 'string' ? input.lessonInfo.gradeLevel : '',
+    moduleLink: typeof input.lessonInfo.moduleLink === 'string' ? input.lessonInfo.moduleLink : '',
+    slidesLink: typeof input.lessonInfo.slidesLink === 'string' ? input.lessonInfo.slidesLink : '',
+    productionState: typeof input.lessonInfo.productionState === 'string' ? input.lessonInfo.productionState : 'Draft',
+  }
+
+  const asStringArray = (value: unknown): string[] =>
+    Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+
+  const outlineOverview = Array.isArray(input.outlineOverview)
+    ? input.outlineOverview
+        .filter(isRecord)
+        .map((row) => ({
+          id: typeof row.id === 'string' ? row.id : crypto.randomUUID(),
+          type: typeof row.type === 'string' ? row.type : '',
+          sectionName: typeof row.sectionName === 'string' ? row.sectionName : '',
+          pedagogy: typeof row.pedagogy === 'string' ? row.pedagogy : '',
+          durationMinutes:
+            typeof row.durationMinutes === 'number' && Number.isFinite(row.durationMinutes)
+              ? row.durationMinutes
+              : 0,
+          slideNumbers: typeof row.slideNumbers === 'string' ? row.slideNumbers : '',
+        }))
+    : []
+
+  const lessonProcedure = Array.isArray(input.lessonProcedure)
+    ? input.lessonProcedure
+        .filter(isRecord)
+        .map((act) => ({
+          id: typeof act.id === 'string' ? act.id : crypto.randomUUID(),
+          activityType: typeof act.activityType === 'string' ? act.activityType : 'Explore',
+          activityTitle: typeof act.activityTitle === 'string' ? act.activityTitle : '',
+          duration: typeof act.duration === 'number' && Number.isFinite(act.duration) ? act.duration : 10,
+          slideNumbers: typeof act.slideNumbers === 'string' ? act.slideNumbers : '',
+          instructions: typeof act.instructions === 'string' ? act.instructions : '',
+        }))
+    : []
+
+  const glossary = Array.isArray(input.glossary)
+    ? input.glossary
+        .filter(isRecord)
+        .map((entry) => ({
+          id: typeof entry.id === 'string' ? entry.id : crypto.randomUUID(),
+          concept: typeof entry.concept === 'string' ? entry.concept : '',
+          definition: typeof entry.definition === 'string' ? entry.definition : '',
+        }))
+    : []
+
+  return {
+    lessonInfo,
+    overview: typeof input.overview === 'string' ? input.overview : '',
+    learningOutcomes: asStringArray(input.learningOutcomes),
+    preparation: asStringArray(input.preparation),
+    outlineOverview,
+    lessonProcedure,
+    publishingGuide: asStringArray(input.publishingGuide),
+    glossary,
+    bonusActivities: asStringArray(input.bonusActivities),
+  }
+}
 
 function initGuide(): TeacherGuide {
-  // If starting with a ?token param, show a blank guide — the token fetch will overwrite it
-  if (new URLSearchParams(window.location.search).has('token')) {
-    return createDefaultGuide()
-  }
-  if (!sessionStorage.getItem(STORAGE_KEY_CHECKED)) {
-    sessionStorage.setItem(STORAGE_KEY_CHECKED, '1')
-    const saved = loadSaved<TeacherGuide>()
-    if (saved) return saved
-  }
+  const saved = loadSaved<TeacherGuide>()
+  if (saved) return saved
   return createDefaultGuide()
 }
 
@@ -38,7 +101,12 @@ export default function App() {
   const [resetStep, setResetStep] = useState<0 | 1>(0)
   const [printMode, setPrintMode] = useState(false)
   const [isImporting, setIsImporting] = useState(
-    () => new URLSearchParams(window.location.search).has('token')
+    () => {
+      const params = new URLSearchParams(window.location.search)
+      const token = params.get('token')
+      if (!token) return false
+      return !sessionStorage.getItem(`${PENDING_GUIDE_KEY_PREFIX}${token}`) && !loadSaved<TeacherGuide>()
+    }
   )
 
   const { status } = useAutoSave(guide)
@@ -51,11 +119,15 @@ export default function App() {
 
     const pendingKey = `${PENDING_GUIDE_KEY_PREFIX}${token}`
     const pendingRaw = sessionStorage.getItem(pendingKey)
+
+    // Keep token-based generation flow when a fresh pending guide exists.
     if (pendingRaw) {
       try {
-        const pending = JSON.parse(pendingRaw) as TeacherGuide
-        setGuide(pending)
-        localStorage.setItem('teacher-guide-v1', JSON.stringify(pending))
+        const pending = normalizeGuide(JSON.parse(pendingRaw))
+        if (pending) {
+          setGuide(pending)
+          localStorage.setItem(GUIDE_STORAGE_KEY, JSON.stringify(pending))
+        }
         sessionStorage.removeItem(pendingKey)
       } catch (error) {
         console.error(error)
@@ -66,14 +138,25 @@ export default function App() {
       return
     }
 
+    const saved = loadSaved<TeacherGuide>()
+    if (saved) {
+      const parsed = normalizeGuide(saved)
+      if (parsed) setGuide(parsed)
+      setIsImporting(false)
+      window.history.replaceState({}, '', window.location.pathname)
+      return
+    }
+
     fetch(`${API_BASE}/guide/${token}`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json()
       })
-      .then((data: TeacherGuide) => {
-        setGuide(data)
-        localStorage.setItem('teacher-guide-v1', JSON.stringify(data))
+      .then((data: unknown) => {
+        const parsed = normalizeGuide(data)
+        if (!parsed) throw new Error('Invalid guide payload from backend')
+        setGuide(parsed)
+        localStorage.setItem(GUIDE_STORAGE_KEY, JSON.stringify(parsed))
       })
       .catch(console.error)
       .finally(() => {
@@ -89,8 +172,7 @@ export default function App() {
   // ── Export JSON ──────────────────────────────────────────────────
   const exportJSON = () => {
     const data     = guideToExportJSON(guide)
-    const filename = (guide.lessonInfo.lessonName.trim() || 'teacher-guide')
-      .toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') + '.json'
+    const filename = 'teacher-guide.json'
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
     const url  = URL.createObjectURL(blob)
     const a    = Object.assign(document.createElement('a'), { href: url, download: filename })
@@ -126,10 +208,12 @@ export default function App() {
   const saveBadge = status === 'saving' ? (
     <span className="flex items-center gap-1 text-xs text-muted-foreground animate-pulse"><Save className="h-3 w-3" />Saving…</span>
   ) : status === 'saved' ? (
-    <span className="flex items-center gap-1 text-xs text-green-600"><Save className="h-3 w-3" />Saved</span>
+    <span className="flex items-center gap-1 text-xs text-green-600"><Save className="h-3 w-3" />Saved locally</span>
   ) : status === 'error' ? (
     <span className="flex items-center gap-1 text-xs text-destructive"><AlertCircle className="h-3 w-3" />Save error</span>
-  ) : null
+  ) : (
+    <span className="flex items-center gap-1 text-xs text-muted-foreground"><Save className="h-3 w-3" />Saved locally</span>
+  )
 
   if (isImporting) {
     return (

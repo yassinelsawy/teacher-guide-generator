@@ -140,14 +140,40 @@ Set at least this environment variable in Vercel project settings:
 
 ```text
 .
-|- main.py                 # Core FastAPI app and routes
-|- api/index.py            # Vercel entrypoint
-|- templates/index.html    # Upload page template
-|- static/app.js           # Upload page client logic
-|- static/style.css        # Upload page styles
-|- static/editor/          # Built editor assets (from Vite build)
-|- editor/                 # React + TypeScript source
+|- main.py                        # Thin runtime entrypoint (imports app from src)
+|- src/                           # Backend application package
+|  |- app.py                      # FastAPI routes and app wiring
+|  |- config.py                   # Environment/config setup
+|  |- services/
+|  |  |- gemini_service.py        # Gemini prompt + generation logic
+|  |  |- guide_service.py         # Guide transformation and HTML rendering
+|  |  `- pdf_service.py           # HTML -> PDF conversion utilities
+|  |- utils/
+|  |  `- pdf_text.py              # PDF text extraction helpers
+|  `- data/
+|     `- sample_guide.py          # Demo/sample guide payload
+|- api/
+|  `- index.py                    # Vercel serverless entrypoint
+|- editor/                        # React + TypeScript editor app
+|  |- src/
+|  |  |- App.tsx                  # Editor container
+|  |  |- main.tsx                 # Editor bootstrap
+|  |  |- components/              # UI components (sections, toolbar, primitives)
+|  |  |- editor/                  # Editor-specific normalization logic
+|  |  |- hooks/                   # React hooks (autosave)
+|  |  |- services/                # Frontend export services
+|  |  |- styles/                  # Base/editor/print style modules
+|  |  |- utils/                   # Shared frontend utilities
+|  |  `- types.ts                 # Teacher Guide domain types
+|  `- public/                     # Editor public static assets
+|- templates/
+|  `- index.html                  # Upload page template
+|- static/
+|  |- app.js                      # Upload page interaction logic
+|  |- styles/
+|  |  `- upload.css               # Upload page stylesheet
+|  `- editor/                     # Built editor assets (generated)
+|- uploads/                       # Local temporary upload directory
 |- requirements.txt
-|- vercel.json
-`- uploads/                # Local temporary upload directory
+`- vercel.json
 ```

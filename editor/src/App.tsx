@@ -13,7 +13,7 @@ import { PublishingGuideSection }  from '@/components/sections/PublishingGuideSe
 import { GlossarySection }         from '@/components/sections/GlossarySection'
 import { BonusActivitiesSection }  from '@/components/sections/BonusActivitiesSection'
 import { useAutoSave, loadSaved }  from '@/hooks/useAutoSave'
-import { createDefaultGuide, guideToExportJSON, type TeacherGuide } from '@/types'
+import { createDefaultGuide, guideToExportJSON, guideToHTML, type TeacherGuide } from '@/types'
 
 const API_BASE = import.meta.env.DEV ? '/api' : ''
 const PENDING_GUIDE_KEY_PREFIX = 'pending-guide:'
@@ -180,6 +180,50 @@ export default function App() {
     document.body.removeChild(a); URL.revokeObjectURL(url)
   }
 
+  // ── Export standalone HTML ───────────────────────────────────────
+  const exportHTML = () => {
+    const contentHTML = guideToHTML(guide)
+    const safeTitle = (guide.lessonInfo.lessonName || 'Teacher Guide').replace(/[<>]/g, '')
+    const documentHTML = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${safeTitle}</title>
+<style>
+body{
+  font-family: Arial, sans-serif;
+  max-width: 900px;
+  margin: auto;
+  padding: 40px;
+  line-height: 1.6;
+  color: #111827;
+}
+
+h1,h2,h3{
+  color:#056fec;
+}
+
+ul,ol{
+  padding-left:20px;
+}
+</style>
+</head>
+<body>
+<h1>Teacher Guide</h1>
+${contentHTML}
+</body>
+</html>`
+
+    const blob = new Blob([documentHTML], { type: 'text/html' })
+    const url = URL.createObjectURL(blob)
+    const a = Object.assign(document.createElement('a'), { href: url, download: 'teacher-guide.html' })
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
   // ── Print-based PDF export ──────────────────────────────────────
   useEffect(() => {
     if (!printMode) return
@@ -261,6 +305,10 @@ export default function App() {
 
           <Button type="button" variant="outline" size="sm" onClick={exportJSON}>
             <Download className="mr-1.5 h-4 w-4" /> Export JSON
+          </Button>
+
+          <Button type="button" variant="outline" size="sm" onClick={exportHTML}>
+            <Download className="mr-1.5 h-4 w-4" /> Export HTML
           </Button>
 
           <Button type="button" variant="outline" size="sm" onClick={exportPDF} disabled={printMode}>

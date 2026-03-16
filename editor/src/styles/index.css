@@ -1,0 +1,4 @@
+/* Style entrypoint grouped by responsibility: base, editor, print. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

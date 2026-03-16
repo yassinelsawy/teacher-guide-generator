@@ -1,0 +1,66 @@
+/* Print-focused layout rules for PDF/browser print export. */
+@media print {
+  header,
+  footer,
+  .tiptap-toolbar,
+  [data-radix-collapsible-trigger],
+  button,
+  [role="button"] {
+    display: none !important;
+  }
+
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 11pt;
+    line-height: 1.5;
+  }
+
+  .rounded-xl.border {
+    border: 1px solid #ccc !important;
+    border-radius: 0 !important;
+    background: white !important;
+    page-break-inside: avoid;
+    margin-bottom: 12pt;
+  }
+
+  [data-state="closed"] > div {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  main {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+
+  .tiptap-wrapper {
+    border: none !important;
+    padding: 0 !important;
+  }
+
+  .tiptap-content {
+    min-height: unset !important;
+  }
+
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  th, td {
+    border: 1px solid #999 !important;
+    padding: 4pt 6pt !important;
+  }
+
+  a {
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+}

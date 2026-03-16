@@ -1,3 +1,4 @@
+// Shared Teacher Guide domain models and serialization helpers.
 // ─── Activity types ───────────────────────────────────────────────────────────
 
 export const ACTIVITY_TYPES = [

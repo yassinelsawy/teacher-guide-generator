@@ -43,7 +43,7 @@ export function LessonInfoSection({ data, onChange, readOnly = false }: Props) {
         <Label htmlFor="moduleLink">Module Link</Label>
         {readOnly
           ? data.moduleLink
-            ? <a href={data.moduleLink} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline break-all">{data.moduleLink}</a>
+            ? <a href={data.moduleLink} className="text-sm text-primary hover:underline break-all">{data.moduleLink}</a>
             : <p className="text-sm text-muted-foreground">—</p>
           : <Input id="moduleLink" type="url" value={data.moduleLink} onChange={e => set('moduleLink', e.target.value)} placeholder="https://…" />}
       </div>
@@ -53,7 +53,7 @@ export function LessonInfoSection({ data, onChange, readOnly = false }: Props) {
         <Label htmlFor="slidesLink">Slides Link</Label>
         {readOnly
           ? data.slidesLink
-            ? <a href={data.slidesLink} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline break-all">{data.slidesLink}</a>
+            ? <a href={data.slidesLink} className="text-sm text-primary hover:underline break-all">{data.slidesLink}</a>
             : <p className="text-sm text-muted-foreground">—</p>
           : <Input id="slidesLink" type="url" value={data.slidesLink} onChange={e => set('slidesLink', e.target.value)} placeholder="https://…" />}
       </div>

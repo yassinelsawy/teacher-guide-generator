@@ -13,7 +13,7 @@ import { GlossarySection }         from '@/components/sections/GlossarySection'
 import { BonusActivitiesSection }  from '@/components/sections/BonusActivitiesSection'
 import { useAutoSave, loadSaved }  from '@/hooks/useAutoSave'
 import { normalizeGuide } from '@/editor/guideNormalization'
-import { exportGuideAsHTML, exportGuideAsJSON } from '@/services/exportService'
+import { exportGuideAsHTML } from '@/services/exportService'
 import { createDefaultGuide, type TeacherGuide } from '@/types'
 
 const API_BASE = import.meta.env.DEV ? '/api' : ''
@@ -100,11 +100,6 @@ export default function App() {
   const set = <K extends keyof TeacherGuide>(key: K, value: TeacherGuide[K]) =>
     setGuide(g => ({ ...g, [key]: value }))
 
-  // ── Export JSON ──────────────────────────────────────────────────
-  const exportJSON = () => {
-    exportGuideAsJSON(guide)
-  }
-
   // ── Export standalone HTML ───────────────────────────────────────
   const exportHTML = () => {
     exportGuideAsHTML(guide)
@@ -153,7 +148,6 @@ export default function App() {
         resetStep={resetStep}
         saveStatus={status}
         onTogglePreview={() => setPreview((p) => !p)}
-        onExportJSON={exportJSON}
         onExportHTML={exportHTML}
         onExportPDF={exportPDF}
         onReset={handleReset}

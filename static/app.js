@@ -66,6 +66,11 @@ function showError(msg) {
   errorBox.classList.add('show');
 }
 
+function clearError() {
+  errorBox.textContent = '';
+  errorBox.classList.remove('show');
+}
+
 function isObject(value) {
   return typeof value === 'object' && value !== null;
 }
@@ -131,16 +136,256 @@ function normalizeGuide(raw) {
   };
 }
 
+function getText(element) {
+  return element?.textContent?.trim() || '';
+}
+
+function normalizeHeading(text) {
+  return String(text || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function extractListItems(nodes) {
+  const items = [];
+
+  nodes.forEach((node) => {
+    const listItems = Array.from(node.querySelectorAll('li'));
+    if (listItems.length > 0) {
+      listItems.forEach((li) => {
+        const text = getText(li);
+        if (text) items.push(text);
+      });
+      return;
+    }
+
+    const text = getText(node);
+    if (text) items.push(text);
+  });
+
+  return items;
+}
+
+function extractHTML(nodes) {
+  return nodes.map((node) => node.outerHTML).join('\n').trim();
+}
+
+function getSectionsByH2(doc) {
+  const sections = new Map();
+  let currentHeading = '';
+
+  Array.from(doc.body.children).forEach((child) => {
+    const tagName = child.tagName?.toLowerCase();
+    if (tagName === 'h2') {
+      currentHeading = normalizeHeading(getText(child));
+      if (!sections.has(currentHeading)) {
+        sections.set(currentHeading, []);
+      }
+      return;
+    }
+
+    if (!currentHeading) return;
+    sections.get(currentHeading).push(child);
+  });
+
+  return sections;
+}
+
+function mapHeading(sections, aliases) {
+  for (const alias of aliases) {
+    const match = sections.get(normalizeHeading(alias));
+    if (match) return match;
+  }
+  return [];
+}
+
+function parseGlossary(nodes) {
+  const entries = [];
+
+  nodes.forEach((node) => {
+    const listItems = Array.from(node.querySelectorAll('li'));
+    if (listItems.length > 0) {
+      listItems.forEach((li) => {
+        const label = li.querySelector('strong, b');
+        const wholeText = getText(li);
+        if (!wholeText) return;
+
+        if (label) {
+          const concept = getText(label).replace(/:\s*$/, '');
+          const definition = wholeText.replace(getText(label), '').replace(/^[:\-\s]+/, '').trim();
+          entries.push({
+            id: crypto.randomUUID(),
+            concept,
+            definition,
+          });
+          return;
+        }
+
+        const [conceptPart, ...definitionParts] = wholeText.split(':');
+        entries.push({
+          id: crypto.randomUUID(),
+          concept: (conceptPart || '').trim(),
+          definition: definitionParts.join(':').trim(),
+        });
+      });
+      return;
+    }
+
+    const text = getText(node);
+    if (!text) return;
+
+    const [conceptPart, ...definitionParts] = text.split(':');
+    entries.push({
+      id: crypto.randomUUID(),
+      concept: (conceptPart || '').trim(),
+      definition: definitionParts.join(':').trim(),
+    });
+  });
+
+  return entries.filter((entry) => entry.concept || entry.definition);
+}
+
+function getActivityType(title) {
+  const normalized = normalizeHeading(title);
+  if (normalized === 'initiate') return 'Recap';
+  if (normalized === 'learn' || normalized === 'explore') return 'Explore';
+  if (normalized === 'make' || normalized === 'create') return 'Make';
+  if (normalized === 'share' || normalized === 'present') return 'Share';
+  if (normalized === 'review') return 'Task Review';
+  if (normalized === 'evaluate') return 'Evaluate';
+  return 'Explore';
+}
+
+function parseLessonProcedure(nodes) {
+  const activities = [];
+  let current = null;
+
+  const flush = () => {
+    if (!current) return;
+    const instructions = extractHTML(current.content);
+    if (!current.title && !instructions) return;
+
+    activities.push({
+      id: crypto.randomUUID(),
+      activityType: getActivityType(current.title),
+      activityTitle: current.title || 'Learn',
+      duration: 10,
+      slideNumbers: '',
+      instructions,
+    });
+  };
+
+  nodes.forEach((node) => {
+    if (node.tagName?.toLowerCase() === 'h3') {
+      flush();
+      current = {
+        title: getText(node),
+        content: [],
+      };
+      return;
+    }
+
+    if (!current) {
+      current = {
+        title: 'Learn',
+        content: [],
+      };
+    }
+
+    current.content.push(node);
+  });
+
+  flush();
+  return activities;
+}
+
+function parseGuideFromHTML(htmlString) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(htmlString, 'text/html');
+
+  if (doc.querySelector('parsererror')) {
+    return null;
+  }
+
+  const h1Nodes = Array.from(doc.querySelectorAll('h1'));
+  const lessonTitleNode = h1Nodes[1] || h1Nodes[0];
+  const lessonTitle = getText(lessonTitleNode);
+  if (!lessonTitle) {
+    return null;
+  }
+
+  const sections = getSectionsByH2(doc);
+  const overviewNodes = mapHeading(sections, ['Session Overview']);
+  const learningOutcomeNodes = mapHeading(sections, ['Learning Outcomes']);
+  const preparationNodes = mapHeading(sections, ['Preparation']);
+  const lessonProcedureNodes = mapHeading(sections, ['Lesson Procedure']);
+  const glossaryNodes = mapHeading(sections, ['Glossary']);
+  const bonusNodes = mapHeading(sections, ['Bonus Activities']);
+
+  const hasMappedSection =
+    overviewNodes.length ||
+    learningOutcomeNodes.length ||
+    preparationNodes.length ||
+    lessonProcedureNodes.length ||
+    glossaryNodes.length ||
+    bonusNodes.length;
+
+  if (!hasMappedSection) {
+    return null;
+  }
+
+  const guide = {
+    lessonInfo: {
+      lessonName: lessonTitle,
+      gradeLevel: '',
+      moduleLink: '',
+      slidesLink: '',
+      productionState: 'Draft',
+    },
+    overview: '',
+    learningOutcomes: [''],
+    preparation: [''],
+    outlineOverview: [],
+    lessonProcedure: [],
+    publishingGuide: [''],
+    glossary: [],
+    bonusActivities: [],
+  };
+
+  if (overviewNodes.length > 0) {
+    guide.overview = extractHTML(overviewNodes);
+  }
+
+  if (learningOutcomeNodes.length > 0) {
+    guide.learningOutcomes = extractListItems(learningOutcomeNodes);
+  }
+
+  if (preparationNodes.length > 0) {
+    guide.preparation = extractListItems(preparationNodes);
+  }
+
+  if (lessonProcedureNodes.length > 0) {
+    guide.lessonProcedure = parseLessonProcedure(lessonProcedureNodes);
+  }
+
+  if (glossaryNodes.length > 0) {
+    guide.glossary = parseGlossary(glossaryNodes);
+  }
+
+  if (bonusNodes.length > 0) {
+    guide.bonusActivities = extractListItems(bonusNodes);
+  }
+
+  return guide;
+}
+
 /* ── Open editor helper ───────────────────────────────────────────── */
 function openEditor() {
-  if (!currentToken) return;
-  const editorUrl = `/editor?token=${encodeURIComponent(currentToken)}`;
-  window.open(editorUrl, '_blank');
+  const editorUrl = currentToken ? `/editor?token=${encodeURIComponent(currentToken)}` : '/editor';
+  window.location.href = editorUrl;
 }
 
 /* ── Generate ─────────────────────────────────────────────────────── */
 generateBtn.addEventListener('click', async () => {
-  errorBox.classList.remove('show');
+  clearError();
   successSection.classList.remove('show');
 
   if (!fileInput.files[0]) {
@@ -163,7 +408,7 @@ generateBtn.addEventListener('click', async () => {
       return;
     }
 
-    currentToken = data.token;
+    currentToken = typeof data.token === 'string' && data.token.trim() ? data.token : null;
     if (data.guide && currentToken) {
       sessionStorage.setItem(`pending-guide:${currentToken}`, JSON.stringify(data.guide));
       localStorage.setItem(GUIDE_STORAGE_KEY, JSON.stringify(data.guide));
@@ -174,7 +419,9 @@ generateBtn.addEventListener('click', async () => {
     successSection.classList.add('show');
 
     // Auto-open the editor after a short delay
-    setTimeout(openEditor, 800);
+    setTimeout(() => {
+      window.location.href = currentToken ? `/editor?token=${encodeURIComponent(currentToken)}` : '/editor';
+    }, 800);
 
   } catch (err) {
     showError('Network error: ' + err.message);
@@ -192,7 +439,7 @@ if (openEditorBtn) {
 /* ── Import guide from index page ────────────────────────────────── */
 if (importGuideBtn && importGuideInput) {
   importGuideBtn.addEventListener('click', () => {
-    errorBox.classList.remove('show');
+    clearError();
     importGuideInput.click();
   });
 
@@ -200,8 +447,8 @@ if (importGuideBtn && importGuideInput) {
     const file = importGuideInput.files?.[0];
     if (!file) return;
 
-    if (file.type && file.type !== 'application/json') {
-      showError('Please select a valid .json file.');
+    if (file.type && file.type !== 'text/html') {
+      showError('Invalid Teacher Guide HTML format');
       importGuideInput.value = '';
       return;
     }
@@ -210,21 +457,22 @@ if (importGuideBtn && importGuideInput) {
     reader.onload = () => {
       try {
         const text = typeof reader.result === 'string' ? reader.result : '';
-        const raw = JSON.parse(text);
-        const guide = normalizeGuide(raw);
-        if (!guide) throw new Error('Invalid guide format');
+        const guide = parseGuideFromHTML(text);
+        const normalizedGuide = guide ? normalizeGuide(guide) : null;
+        if (!normalizedGuide) throw new Error('Invalid guide format');
 
-        localStorage.setItem(GUIDE_STORAGE_KEY, JSON.stringify(guide));
-        window.open('/editor', '_blank');
+        localStorage.setItem(GUIDE_STORAGE_KEY, JSON.stringify(normalizedGuide));
+        currentToken = null;
+        window.location.href = '/editor';
       } catch {
-        showError('Invalid JSON file. Please import a Teacher Guide export.');
+        showError('Invalid Teacher Guide HTML format');
       } finally {
         importGuideInput.value = '';
       }
     };
 
     reader.onerror = () => {
-      showError('Failed to read JSON file. Please try again.');
+      showError('Invalid Teacher Guide HTML format');
       importGuideInput.value = '';
     };
 

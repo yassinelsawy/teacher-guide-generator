@@ -2,32 +2,90 @@
 
 Teacher Guide Generator is a FastAPI + React application that converts uploaded lesson PDFs into structured, editable teacher guides using Google Gemini.
 
-## Latest Features
+## Website Features
 
-- PDF upload flow with drag-and-drop UI and guided progress states.
-- AI guide generation from PDF text extraction (`pdfplumber`) using Gemini.
-- Resilient model handling:
-	- configurable primary model (`GEMINI_MODEL`, default `gemini-2.5-flash`)
-	- automatic fallback model list (`GEMINI_MODEL_FALLBACKS`)
-	- retry with exponential backoff for quota/rate-limit errors.
-- Token-based handoff from generator to editor (`/upload` -> `/editor?token=...`), with one-time retrieval via `/guide/{token}`.
-- Rich teacher guide editor (React + TypeScript + Tiptap) with 9 editable sections:
-	- Lesson Info
-	- Overview
-	- Learning Outcomes
-	- Preparation
-	- Outline Overview
-	- Lesson Procedure
-	- Publishing Guide
-	- Glossary
-	- Bonus Activities
-- Autosave to browser local storage with debounce and save-status indicators.
-- Preview mode toggle and print-ready export flow.
-- JSON export that removes internal editor-only IDs.
-- Two-click reset protection for clearing the guide.
-- Demo endpoint (`/demo`) for quick UI testing without uploading a file.
-- Server-side PDF export endpoint (`/export-pdf`) that supports text formatting, lists, and embedded images from HTML content.
-- One-server production mode where FastAPI serves both generator and built editor bundle.
+### Upload and Generation (Generator Page)
+
+- Drag-and-drop PDF upload with click-to-browse fallback.
+- PDF file type validation (`.pdf` only).
+- Multi-step progress spinner messages during generation:
+  - Uploading file
+  - PDF text extraction
+  - Gemini generation
+  - Finalization
+- Friendly inline error messages for invalid files, network failures, and backend errors.
+- Success state with auto-open behavior into the editor.
+- Manual `Open in Editor` button after generation.
+
+### AI Generation Pipeline
+
+- PDF text extraction using `pdfplumber`.
+- Gemini prompt designed to produce structured teacher-guide content.
+- Resilient model selection:
+  - primary model via `GEMINI_MODEL`
+  - fallback models via `GEMINI_MODEL_FALLBACKS`
+- Automatic retry with exponential backoff for quota/rate-limit responses.
+- One-time token handoff flow:
+  - `POST /upload` returns `{ token, file_name, guide }`
+  - generated guide is stored server-side in a temporary in-memory token map
+  - editor retrieves it once via `GET /guide/{token}`
+
+### Guide Import on Generator Page
+
+- `Import Guide (.html)` button on the upload page.
+- HTML file parsing with `FileReader` and `DOMParser` before loading.
+- Imported guides are mapped into the existing editor schema, persisted to local storage, and opened in the editor.
+
+### Editor Experience
+
+- Structured teacher-guide editor built with React + TypeScript.
+- 9 editable sections:
+  1. Lesson Info
+  2. Overview (Lesson Scenario)
+  3. Learning Outcomes
+  4. Preparation
+  5. Outline Overview
+  6. Lesson Procedure
+  7. Publishing Guide
+  8. Glossary
+  9. Bonus Activities
+- Collapsible sections with badges/counts for content visibility.
+- Preview mode toggle (read-only view).
+- Save status indicator (`saving`, `saved locally`, `error`).
+- Debounced autosave to browser local storage.
+- Two-click reset protection.
+- Token-based loading screen when opening editor from generator.
+- Same-tab navigation for Generate Teacher Guide, Open in Editor, and Import HTML.
+
+### Rich Text Editing
+
+- Tiptap-based editor fields for rich content (for overview/instructions and section components).
+- Rich text toolbar features include:
+  - bold
+  - italic
+  - underline
+  - bullet list
+  - ordered list
+  - undo/redo
+- Image support:
+  - upload from local file (base64)
+  - insert by URL
+
+### Export Options
+
+- Export as standalone HTML document.
+- Print-based PDF export flow in editor (`window.print()` with print styles).
+- Backend HTML-to-PDF endpoint available at `POST /export-pdf` for server-side PDF generation.
+
+### Demo and Preview Utilities
+
+- `GET /demo` endpoint returns sample guide payload + HTML for quick UI testing.
+
+### Deployment and Runtime Modes
+
+- One-server mode: FastAPI serves upload page, API, and built editor bundle.
+- Split dev mode: FastAPI backend + Vite dev server for editor.
+- Vercel routing via `api/index.py` and `vercel.json`.
 
 ## Tech Stack
 
@@ -53,11 +111,18 @@ GEMINI_MODEL=gemini-2.5-flash
 GEMINI_MODEL_FALLBACKS=gemini-2.0-flash,gemini-1.5-flash,gemini-1.5-pro
 ```
 
-Only `GEMINI_API_KEY` is required. The model variables are optional overrides.
+Required:
+
+- `GEMINI_API_KEY`
+
+Optional:
+
+- `GEMINI_MODEL`
+- `GEMINI_MODEL_FALLBACKS`
 
 ## Local Setup
 
-### 1. Install backend dependencies
+### 1) Install backend dependencies
 
 ```bash
 python -m venv .venv
@@ -65,7 +130,7 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-### 2. Install editor dependencies
+### 2) Install editor dependencies
 
 ```bash
 cd editor
@@ -113,7 +178,7 @@ Open editor at Vite URL (usually http://localhost:5173). API requests are proxie
 - `GET /` - Upload UI.
 - `POST /upload` - Upload PDF, generate guide, return `{ token, file_name, guide }`.
 - `GET /guide/{token}` - Fetch generated guide by token (one-time retrieval).
-- `GET /demo` - Return sample guide payload for preview/testing.
+- `GET /demo` - Return sample guide payload + HTML for preview/testing.
 - `GET /editor` - Serve built editor in one-server mode.
 - `POST /export-pdf` - Convert HTML payload into downloadable PDF.
 
@@ -159,7 +224,7 @@ Set at least this environment variable in Vercel project settings:
 |  |  |- App.tsx                  # Editor container
 |  |  |- main.tsx                 # Editor bootstrap
 |  |  |- components/              # UI components (sections, toolbar, primitives)
-|  |  |- editor/                  # Editor-specific normalization logic
+|  |  |- editor/                  # Guide normalization and import helpers
 |  |  |- hooks/                   # React hooks (autosave)
 |  |  |- services/                # Frontend export services
 |  |  |- styles/                  # Base/editor/print style modules

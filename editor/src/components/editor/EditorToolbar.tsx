@@ -12,7 +12,6 @@ interface EditorToolbarProps {
   resetStep: 0 | 1
   saveStatus: 'idle' | 'saving' | 'saved' | 'error'
   onTogglePreview: () => void
-  onExportJSON: () => void
   onExportHTML: () => void
   onExportPDF: () => void
   onReset: () => void
@@ -27,7 +26,6 @@ export function EditorToolbar({
   resetStep,
   saveStatus,
   onTogglePreview,
-  onExportJSON,
   onExportHTML,
   onExportPDF,
   onReset,
@@ -74,10 +72,6 @@ export function EditorToolbar({
         <Button type="button" variant="ghost" size="sm" onClick={onTogglePreview}>
           {preview ? <EyeOff className="mr-1.5 h-4 w-4" /> : <Eye className="mr-1.5 h-4 w-4" />}
           {preview ? 'Edit' : 'Preview'}
-        </Button>
-
-        <Button type="button" variant="outline" size="sm" onClick={onExportJSON}>
-          <Download className="mr-1.5 h-4 w-4" /> Export JSON
         </Button>
 
         <Button type="button" variant="outline" size="sm" onClick={onExportHTML}>

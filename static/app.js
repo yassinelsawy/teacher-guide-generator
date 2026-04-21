@@ -16,6 +16,11 @@ const importGuideInput = document.getElementById('import-guide-input');
 let currentToken = null;
 const GUIDE_STORAGE_KEY = 'teacherGuideData';
 
+function getUploadApiBaseUrl() {
+  const base = window.__APP_CONFIG__?.uploadApiBaseUrl || '';
+  return base.replace(/\/$/, '');
+}
+
 /* ── File selection ───────────────────────────────────────────────── */
 fileInput.addEventListener('change', () => {
   fileLabel.textContent = fileInput.files[0]?.name || '';
@@ -400,11 +405,26 @@ generateBtn.addEventListener('click', async () => {
   startSpinner();
 
   try {
-    const res  = await fetch('/upload', { method: 'POST', body: fd });
-    const data = await res.json();
+    const uploadApiBaseUrl = getUploadApiBaseUrl();
+    const res = await fetch(`${uploadApiBaseUrl}/upload`, { method: 'POST', body: fd });
+    const rawBody = await res.text();
+    let data = {};
+
+    if (rawBody) {
+      try {
+        data = JSON.parse(rawBody);
+      } catch {
+        if (!res.ok) {
+          showError(`Server error (${res.status}). Received an invalid response.`);
+          return;
+        }
+
+        throw new Error('Server returned an invalid response payload.');
+      }
+    }
 
     if (!res.ok || data.error) {
-      showError(data.error || 'Unknown server error.');
+      showError(data.error || `Server error (${res.status}). Please try again.`);
       return;
     }
 

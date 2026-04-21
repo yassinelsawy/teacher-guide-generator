@@ -11,6 +11,7 @@ const successTitle  = document.getElementById('success-title');
 const openEditorBtn = document.getElementById('open-editor-btn');
 const importGuideBtn = document.getElementById('import-guide-btn');
 const importGuideInput = document.getElementById('import-guide-input');
+const apiDebug      = document.getElementById('api-debug');
 
 /* ── State ────────────────────────────────────────────────────────── */
 let currentToken = null;
@@ -19,6 +20,21 @@ const GUIDE_STORAGE_KEY = 'teacherGuideData';
 function getUploadApiBaseUrl() {
   const base = window.__APP_CONFIG__?.uploadApiBaseUrl || '';
   return base.replace(/\/$/, '');
+}
+
+function getUploadEndpointUrl() {
+  const base = getUploadApiBaseUrl();
+  const target = `${base}/upload`;
+
+  try {
+    return new URL(target, window.location.origin).toString();
+  } catch {
+    return target;
+  }
+}
+
+if (apiDebug) {
+  apiDebug.textContent = `Debug API endpoint: POST ${getUploadEndpointUrl()}`;
 }
 
 /* ── File selection ───────────────────────────────────────────────── */
@@ -405,8 +421,8 @@ generateBtn.addEventListener('click', async () => {
   startSpinner();
 
   try {
-    const uploadApiBaseUrl = getUploadApiBaseUrl();
-    const res = await fetch(`${uploadApiBaseUrl}/upload`, { method: 'POST', body: fd });
+    const uploadEndpoint = getUploadEndpointUrl();
+    const res = await fetch(uploadEndpoint, { method: 'POST', body: fd });
     const rawBody = await res.text();
     let data = {};
 

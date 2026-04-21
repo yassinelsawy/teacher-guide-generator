@@ -11,7 +11,6 @@ const successTitle  = document.getElementById('success-title');
 const openEditorBtn = document.getElementById('open-editor-btn');
 const importGuideBtn = document.getElementById('import-guide-btn');
 const importGuideInput = document.getElementById('import-guide-input');
-const apiDebug      = document.getElementById('api-debug');
 
 /* ── State ────────────────────────────────────────────────────────── */
 let currentToken = null;
@@ -31,10 +30,6 @@ function getUploadEndpointUrl() {
   } catch {
     return target;
   }
-}
-
-if (apiDebug) {
-  apiDebug.textContent = `Debug API endpoint: POST ${getUploadEndpointUrl()}`;
 }
 
 /* ── File selection ───────────────────────────────────────────────── */

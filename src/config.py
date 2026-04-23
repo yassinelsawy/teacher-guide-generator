@@ -24,7 +24,6 @@ UPLOAD_DIR = Path("/tmp/uploads") if os.getenv("VERCEL") else Path("uploads")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 STATIC_DIR = Path("static")
-STATIC_DIR.mkdir(exist_ok=True)
 EDITOR_BUILD_INDEX = STATIC_DIR / "editor" / "index.html"
 
 CORS_ORIGINS = [

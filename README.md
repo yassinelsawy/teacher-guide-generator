@@ -1,47 +1,22 @@
 # Teacher Guide Generator
 
-Teacher Guide Generator is a FastAPI + React application that converts uploaded lesson PDFs into structured, editable teacher guides using Google Gemini.
+Teacher Guide Generator is a FastAPI + React application that turns lesson PDFs into structured, editable teacher guides with Gemini, then opens them in a browser-based editor.
 
-## Website Features
+## What The App Does
 
-### Upload and Generation (Generator Page)
+### Generator Page
 
-- Drag-and-drop PDF upload with click-to-browse fallback.
-- PDF file type validation (`.pdf` only).
-- Multi-step progress spinner messages during generation:
-  - Uploading file
-  - PDF text extraction
-  - Gemini generation
-  - Finalization
-- Friendly inline error messages for invalid files, network failures, and backend errors.
-- Success state with auto-open behavior into the editor.
-- Manual `Open in Editor` button after generation.
+- Upload a `.pdf` by drag-and-drop or file picker.
+- Extract readable text from the PDF and send it to Gemini.
+- Show progress while the app uploads, extracts text, generates content, and finalizes the guide.
+- Return the generated guide in a one-time token flow and open it in the editor.
+- Import an existing guide from an HTML file and load it into the editor.
 
-### AI Generation Pipeline
+### Editor
 
-- PDF text extraction using `pdfplumber`.
-- Gemini prompt designed to produce structured teacher-guide content.
-- Resilient model selection:
-  - primary model via `GEMINI_MODEL`
-  - fallback models via `GEMINI_MODEL_FALLBACKS`
-- Automatic retry with exponential backoff for quota/rate-limit responses.
-- One-time token handoff flow:
-  - `POST /upload` returns `{ token, file_name, guide }`
-  - generated guide is stored server-side in a temporary in-memory token map
-  - editor retrieves it once via `GET /guide/{token}`
-
-### Guide Import on Generator Page
-
-- `Import Guide (.html)` button on the upload page.
-- HTML file parsing with `FileReader` and `DOMParser` before loading.
-- Imported guides are mapped into the existing editor schema, persisted to local storage, and opened in the editor.
-
-### Editor Experience
-
-- Structured teacher-guide editor built with React + TypeScript.
-- 9 editable sections:
+- Edit the guide in 9 structured sections:
   1. Lesson Info
-  2. Overview (Lesson Scenario)
+  2. Overview
   3. Learning Outcomes
   4. Preparation
   5. Outline Overview
@@ -49,59 +24,32 @@ Teacher Guide Generator is a FastAPI + React application that converts uploaded 
   7. Publishing Guide
   8. Glossary
   9. Bonus Activities
-- Collapsible sections with badges/counts for content visibility.
-- Preview mode toggle (read-only view).
-- Save status indicator (`saving`, `saved locally`, `error`).
-- Debounced autosave to browser local storage.
-- Two-click reset protection.
-- Token-based loading screen when opening editor from generator.
-- Same-tab navigation for Generate Teacher Guide, Open in Editor, and Import HTML.
+- Collapse sections, preview read-only output, and autosave locally.
+- Export the guide as standalone HTML.
+- Print the guide to PDF using the browser print flow.
 
-### Rich Text Editing
+### Backend
 
-- Tiptap-based editor fields for rich content (for overview/instructions and section components).
-- Rich text toolbar features include:
-  - bold
-  - italic
-  - underline
-  - bullet list
-  - ordered list
-  - undo/redo
-- Image support:
-  - upload from local file (base64)
-  - insert by URL
-
-### Export Options
-
-- Export as standalone HTML document.
-- Print-based PDF export flow in editor (`window.print()` with print styles).
-- Backend HTML-to-PDF endpoint available at `POST /export-pdf` for server-side PDF generation.
-
-### Demo and Preview Utilities
-
-- `GET /demo` endpoint returns sample guide payload + HTML for quick UI testing.
-
-### Deployment and Runtime Modes
-
-- One-server mode: FastAPI serves upload page, API, and built editor bundle.
-- Split dev mode: FastAPI backend + Vite dev server for editor.
-- Vercel routing via `api/index.py` and `vercel.json`.
+- `POST /upload` uploads a PDF and returns a guide payload plus a token.
+- `GET /guide/{token}` loads a generated guide once.
+- `GET /demo` returns a sample guide for testing.
+- `POST /export-pdf` converts HTML into a PDF.
 
 ## Tech Stack
 
 - Backend: FastAPI, Uvicorn, Jinja2
 - AI: Google Gemini via `google-genai`
 - PDF text extraction: `pdfplumber`
-- PDF rendering/export: ReportLab
-- Frontend editor: React, TypeScript, Vite, Tailwind, Radix UI, Tiptap
+- PDF export: ReportLab
+- Editor: React, TypeScript, Vite, Tailwind, Radix UI, Tiptap
 
-## Prerequisites
+## Requirements
 
 - Python 3.10+
 - Node.js 18+
 - Gemini API key from https://aistudio.google.com/apikey
 
-## Environment Variables
+## Configuration
 
 Create a `.env` file in the project root:
 
@@ -120,11 +68,11 @@ Optional:
 
 - `GEMINI_MODEL`
 - `GEMINI_MODEL_FALLBACKS`
-- `UPLOAD_API_BASE_URL` - Optional base URL for the upload page API calls. Leave blank for same-origin.
+- `UPLOAD_API_BASE_URL` - Optional API base URL for the upload page. Leave blank for same-origin.
 
 ## Local Setup
 
-### 1) Install backend dependencies
+Install backend dependencies:
 
 ```bash
 python -m venv .venv
@@ -132,7 +80,7 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-### 2) Install editor dependencies
+Install editor dependencies:
 
 ```bash
 cd editor
@@ -140,16 +88,13 @@ npm install
 cd ..
 ```
 
-## Run Options
+## Run Locally
 
-### Option A: One-server mode (recommended)
+### Option 1: FastAPI only
 
-Build editor assets, then serve everything from FastAPI:
+Run the backend:
 
 ```bash
-cd editor
-npm run build
-cd ..
 uvicorn src.app:app --reload
 ```
 
@@ -158,40 +103,26 @@ Open:
 - Generator: http://127.0.0.1:8000/
 - Editor shell: http://127.0.0.1:8000/editor
 
-### Option B: Split dev mode (Vite + FastAPI)
+### Option 2: Backend + Vite dev server
 
-Run backend:
+Run the backend:
 
 ```bash
 uvicorn src.app:app --reload
 ```
 
-Run editor dev server in a second terminal:
+Run the editor in another terminal:
 
 ```bash
 cd editor
 npm run dev
 ```
 
-Open editor at Vite URL (usually http://localhost:5173). API requests are proxied from `/api/*` to `http://localhost:8000/*`.
+Then open the Vite editor URL, usually http://localhost:5173.
 
-## API Endpoints
+### Option 3: Build editor assets and run one server
 
-- `GET /` - Upload UI.
-- `POST /upload` - Upload PDF, generate guide, return `{ token, file_name, guide }`.
-- `GET /guide/{token}` - Fetch generated guide by token (one-time retrieval).
-- `GET /demo` - Return sample guide payload + HTML for preview/testing.
-- `GET /editor` - Serve built editor in one-server mode.
-- `POST /export-pdf` - Convert HTML payload into downloadable PDF.
-
-## Deployment (Vercel)
-
-This repository includes Vercel support:
-
-- `api/index.py` exposes the FastAPI app for serverless routing.
-- `vercel.json` routes requests to the API app.
-
-Before deploying frontend changes, rebuild the editor and commit generated files under `static/editor`:
+Build the editor first:
 
 ```bash
 cd editor
@@ -199,47 +130,67 @@ npm run build
 cd ..
 ```
 
-Set at least this environment variable in Vercel project settings:
+Then run the backend:
 
-- `GEMINI_API_KEY`
+```bash
+uvicorn src.app:app --reload
+```
+
+## Deployment
+
+### Vercel
+
+- `api/index.py` is the serverless entrypoint.
+- `vercel.json` routes requests to the FastAPI app.
+- Set `GEMINI_API_KEY` in Vercel project settings.
+- Rebuild the editor before deploying frontend changes:
+
+```bash
+cd editor
+npm run build
+cd ..
+```
+
+### Local Hosting Mode
+
+The backend serves the generator page and built editor bundle from the same FastAPI app when `static/editor` has been built.
+
+## API Endpoints
+
+- `GET /` - Upload page.
+- `POST /upload` - Upload a PDF and generate a teacher guide.
+- `GET /guide/{token}` - Retrieve a generated guide once.
+- `GET /demo` - Sample guide payload for preview/testing.
+- `GET /editor` - Built editor shell.
+- `POST /export-pdf` - HTML to PDF export.
 
 ## Project Structure
 
 ```text
 .
-|- src/                           # Backend application package
-|  |- app.py                      # FastAPI routes and app wiring
-|  |- config.py                   # Environment/config setup
-|  |- services/
-|  |  |- gemini_service.py        # Gemini prompt + generation logic
-|  |  |- guide_service.py         # Guide transformation and HTML rendering
-|  |  `- pdf_service.py           # HTML -> PDF conversion utilities
-|  |- utils/
-|  |  `- pdf_text.py              # PDF text extraction helpers
-|  `- data/
-|     `- sample_guide.py          # Demo/sample guide payload
 |- api/
 |  `- index.py                    # Vercel serverless entrypoint
-|- editor/                        # React + TypeScript editor app
+|- editor/                        # React + TypeScript editor source
 |  |- src/
-|  |  |- App.tsx                  # Editor container
-|  |  |- main.tsx                 # Editor bootstrap
-|  |  |- components/              # UI components (sections, toolbar, primitives)
-|  |  |- editor/                  # Guide normalization and import helpers
-|  |  |- hooks/                   # React hooks (autosave)
-|  |  |- services/                # Frontend export services
-|  |  |- styles/                  # Base/editor/print style modules
-|  |  |- utils/                   # Shared frontend utilities
-|  |  `- types.ts                 # Teacher Guide domain types
-|  `- public/                     # Editor public static assets
+|  |- index.html
+|  |- package.json
+|  |- tsconfig.json
+|  `- vite.config.ts
+|- src/                           # FastAPI backend
+|  |- app.py                      # Routes and app wiring
+|  |- config.py                   # Environment and path config
+|  |- data/
+|  |- services/
+|  `- utils/
+|- static/                        # Upload page assets and built editor output
 |- templates/
 |  `- index.html                  # Upload page template
-|- static/
-|  |- app.js                      # Upload page interaction logic
-|  |- styles/
-|  |  `- upload.css               # Upload page stylesheet
-|  `- editor/                     # Built editor assets (generated)
-|- uploads/                       # Local temporary upload directory
 |- requirements.txt
 `- vercel.json
 ```
+
+## Notes
+
+- The generator stores uploaded guides temporarily in memory by token.
+- The editor autosaves to browser local storage.
+- The app expects the Gemini API key to be configured in your environment.

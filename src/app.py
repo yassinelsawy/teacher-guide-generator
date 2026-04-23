@@ -39,8 +39,9 @@ app.add_middleware(
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     return templates.TemplateResponse(
-        "index.html",
-        {
+        request=request,
+        name="index.html",
+        context={
             "request": request,
             "upload_api_base_url": UPLOAD_API_BASE_URL,
         },

@@ -150,7 +150,7 @@ Build editor assets, then serve everything from FastAPI:
 cd editor
 npm run build
 cd ..
-python main.py
+uvicorn src.app:app --reload
 ```
 
 Open:
@@ -163,7 +163,7 @@ Open:
 Run backend:
 
 ```bash
-python main.py
+uvicorn src.app:app --reload
 ```
 
 Run editor dev server in a second terminal:
@@ -207,7 +207,6 @@ Set at least this environment variable in Vercel project settings:
 
 ```text
 .
-|- main.py                        # Thin runtime entrypoint (imports app from src)
 |- src/                           # Backend application package
 |  |- app.py                      # FastAPI routes and app wiring
 |  |- config.py                   # Environment/config setup

@@ -9,6 +9,8 @@ __pycache__/
 .venv/
 venv/
 env/
+editor/node_modules/
+editor/dist/
 
 # Environment variables (contains API keys)
 .env

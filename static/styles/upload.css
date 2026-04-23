@@ -89,6 +89,10 @@ body {
 
 #generate-btn { margin-bottom: 2.5rem; }
 
+.import-guide-btn {
+  margin-top: 24px;
+}
+
 .btn-download {
   background: linear-gradient(135deg, #059669, #0891b2);
   margin-top: .5rem;

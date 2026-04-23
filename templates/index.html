@@ -4,14 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Teacher Guide Generator</title>
-  <script>
-    window.__APP_CONFIG__ = {
-      uploadApiBaseUrl: {{ upload_api_base_url | tojson }},
-    };
-  </script>
   <link rel="stylesheet" href="/static/styles/upload.css" />
 </head>
-<body>
+<body data-upload-api-base-url="{{ upload_api_base_url | e }}">
 <div class="container">
 
   <!-- Header -->
@@ -23,7 +18,7 @@
   <!-- Upload Card -->
   <div class="card">
     <div class="dropzone" id="dropzone">
-      <input type="file" id="file-input" accept=".pdf" />
+      <input type="file" id="file-input" accept=".pdf" aria-label="Upload PDF file" title="Upload PDF file" />
       <div class="dropzone-icon">&#128193;</div>
       <p><strong>Click to browse</strong> or drag &amp; drop here</p>
       <small>Accepted: .pdf files only</small>
@@ -39,7 +34,7 @@
 
     <div class="btn-stack">
       <button class="btn btn-full" id="generate-btn">Generate Teacher Guide</button>
-      <button class="btn btn-full" id="import-guide-btn" type="button" style="margin-top: 24px;">Import Guide (.html)</button>
+      <button class="btn btn-full import-guide-btn" id="import-guide-btn" type="button">Import Guide (.html)</button>
     </div>
     <input type="file" id="import-guide-input" accept="text/html" hidden />
   </div>

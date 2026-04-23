@@ -17,7 +17,7 @@ let currentToken = null;
 const GUIDE_STORAGE_KEY = 'teacherGuideData';
 
 function getUploadApiBaseUrl() {
-  const base = window.__APP_CONFIG__?.uploadApiBaseUrl || '';
+  const base = document.body?.dataset?.uploadApiBaseUrl || '';
   return base.replace(/\/$/, '');
 }
 

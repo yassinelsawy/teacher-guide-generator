@@ -109,6 +109,7 @@ Create a `.env` file in the project root:
 GEMINI_API_KEY=your_key_here
 GEMINI_MODEL=gemini-2.5-flash
 GEMINI_MODEL_FALLBACKS=gemini-2.0-flash,gemini-1.5-flash,gemini-1.5-pro
+UPLOAD_API_BASE_URL=
 ```
 
 Required:
@@ -119,6 +120,7 @@ Optional:
 
 - `GEMINI_MODEL`
 - `GEMINI_MODEL_FALLBACKS`
+- `UPLOAD_API_BASE_URL` - Optional base URL for the upload page API calls. Leave blank for same-origin.
 
 ## Local Setup
 

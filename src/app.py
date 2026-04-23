@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Streamin
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from src.config import CORS_ORIGINS, EDITOR_BUILD_INDEX, UPLOAD_DIR
+from src.config import CORS_ORIGINS, EDITOR_BUILD_INDEX, UPLOAD_API_BASE_URL, UPLOAD_DIR
 from src.data.sample_guide import SAMPLE_GUIDE
 from src.services.gemini_service import generate_teacher_guide
 from src.services.guide_service import dict_to_teacher_guide, teacher_guide_to_html
@@ -38,7 +38,13 @@ app.add_middleware(
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(
+        "index.html",
+        {
+            "request": request,
+            "upload_api_base_url": UPLOAD_API_BASE_URL,
+        },
+    )
 
 
 @app.get("/editor", response_class=HTMLResponse)

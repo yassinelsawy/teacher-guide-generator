@@ -1,12 +1,16 @@
 ﻿/* ── DOM refs ─────────────────────────────────────────────────────── */
 const fileInput     = document.getElementById('file-input');
 const fileLabel     = document.getElementById('file-label');
+const fileChip      = document.getElementById('file-chip');
+const fileChipName  = document.getElementById('file-chip-name');
+const fileChipSize  = document.getElementById('file-chip-size');
 const dropzone      = document.getElementById('dropzone');
 const generateBtn   = document.getElementById('generate-btn');
+const generateBtnTitle = document.getElementById('generate-btn-title');
 const spinner       = document.getElementById('spinner');
 const spinnerMsg    = document.getElementById('spinner-msg');
 const errorBox      = document.getElementById('error-box');
-const successSection = document.getElementById('success-section');
+const successSection = document.getElementById('success-toast');
 const successTitle  = document.getElementById('success-title');
 const openEditorBtn = document.getElementById('open-editor-btn');
 const importGuideBtn = document.getElementById('import-guide-btn');
@@ -15,6 +19,8 @@ const importGuideInput = document.getElementById('import-guide-input');
 /* ── State ────────────────────────────────────────────────────────── */
 let currentToken = null;
 const GUIDE_STORAGE_KEY = 'teacherGuideData';
+const DEFAULT_GENERATE_LABEL = generateBtn?.dataset?.defaultLabel || 'Generate';
+const LOADING_GENERATE_LABEL = 'Generating...';
 
 function getUploadApiBaseUrl() {
   const base = document.body?.dataset?.uploadApiBaseUrl || '';
@@ -33,8 +39,27 @@ function getUploadEndpointUrl() {
 }
 
 /* ── File selection ───────────────────────────────────────────────── */
+function formatFileSize(bytes) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 KB';
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function setSelectedFile(file) {
+  if (!file) {
+    fileLabel.textContent = '';
+    if (fileChip) fileChip.hidden = true;
+    return;
+  }
+
+  fileLabel.textContent = file.name;
+  if (fileChipName) fileChipName.textContent = file.name;
+  if (fileChipSize) fileChipSize.textContent = formatFileSize(file.size);
+  if (fileChip) fileChip.hidden = false;
+}
+
 fileInput.addEventListener('change', () => {
-  fileLabel.textContent = fileInput.files[0]?.name || '';
+  setSelectedFile(fileInput.files?.[0] || null);
 });
 
 dropzone.addEventListener('dragover', e => {
@@ -47,7 +72,7 @@ dropzone.addEventListener('drop', e => {
   dropzone.classList.remove('drag-over');
   if (e.dataTransfer.files.length) {
     fileInput.files = e.dataTransfer.files;
-    fileLabel.textContent = e.dataTransfer.files[0].name;
+    setSelectedFile(e.dataTransfer.files[0]);
   }
 });
 
@@ -65,6 +90,9 @@ function startSpinner() {
   let i = 0;
   spinner.classList.add('active');
   spinnerMsg.textContent = msgs[0];
+  if (generateBtnTitle) generateBtnTitle.textContent = LOADING_GENERATE_LABEL;
+  generateBtn.setAttribute('aria-busy', 'true');
+  if (importGuideBtn) importGuideBtn.disabled = true;
   msgTimer = setInterval(() => {
     i = (i + 1) % msgs.length;
     spinnerMsg.textContent = msgs[i];
@@ -74,6 +102,9 @@ function startSpinner() {
 function stopSpinner() {
   clearInterval(msgTimer);
   spinner.classList.remove('active');
+  if (generateBtnTitle) generateBtnTitle.textContent = DEFAULT_GENERATE_LABEL;
+  generateBtn.setAttribute('aria-busy', 'false');
+  if (importGuideBtn) importGuideBtn.disabled = false;
 }
 
 /* ── Error helper ─────────────────────────────────────────────────── */
@@ -158,6 +189,15 @@ function getText(element) {
 
 function normalizeHeading(text) {
   return String(text || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function navigateToEditor() {
+  const editorUrl = currentToken ? `/editor?token=${encodeURIComponent(currentToken)}` : '/editor'
+  try {
+    window.location.replace(editorUrl)
+  } catch {
+    window.location.href = editorUrl
+  }
 }
 
 function extractListItems(nodes) {
@@ -402,7 +442,7 @@ function openEditor() {
 /* ── Generate ─────────────────────────────────────────────────────── */
 generateBtn.addEventListener('click', async () => {
   clearError();
-  successSection.classList.remove('show');
+  if (successSection) successSection.classList.remove('show');
 
   if (!fileInput.files[0]) {
     showError('Please select a .pdf file first.');
@@ -445,14 +485,16 @@ generateBtn.addEventListener('click', async () => {
       localStorage.setItem(GUIDE_STORAGE_KEY, JSON.stringify(data.guide));
     }
 
-    // Show success card
-    successTitle.textContent = `"${data.file_name.replace(/_/g, ' ')}" generated!`;
-    successSection.classList.add('show');
+    // Show success toast
+    if (successTitle) {
+      successTitle.textContent = `"${data.file_name.replace(/_/g, ' ')}" generated!`;
+    }
+    if (successSection) successSection.classList.add('show');
 
     // Auto-open the editor after a short delay
     setTimeout(() => {
-      window.location.href = currentToken ? `/editor?token=${encodeURIComponent(currentToken)}` : '/editor';
-    }, 800);
+      navigateToEditor();
+    }, 1200);
 
   } catch (err) {
     showError('Network error: ' + err.message);
@@ -461,11 +503,6 @@ generateBtn.addEventListener('click', async () => {
     generateBtn.disabled = false;
   }
 });
-
-/* ── Manual "Open in Editor" button ──────────────────────────────── */
-if (openEditorBtn) {
-  openEditorBtn.addEventListener('click', openEditor);
-}
 
 /* ── Import guide from index page ────────────────────────────────── */
 if (importGuideBtn && importGuideInput) {
@@ -509,4 +546,8 @@ if (importGuideBtn && importGuideInput) {
 
     reader.readAsText(file);
   });
+}
+
+if (openEditorBtn) {
+  openEditorBtn.addEventListener('click', navigateToEditor)
 }

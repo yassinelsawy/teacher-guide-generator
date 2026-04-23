@@ -11,6 +11,7 @@ import { LessonProcedureSection }  from '@/components/sections/LessonProcedureSe
 import { PublishingGuideSection }  from '@/components/sections/PublishingGuideSection'
 import { GlossarySection }         from '@/components/sections/GlossarySection'
 import { BonusActivitiesSection }  from '@/components/sections/BonusActivitiesSection'
+import { CustomSectionsSection }   from '@/components/sections/CustomSectionsSection'
 import { useAutoSave, loadSaved }  from '@/hooks/useAutoSave'
 import { normalizeGuide } from '@/editor/guideNormalization'
 import { exportGuideAsHTML } from '@/services/exportService'
@@ -22,7 +23,10 @@ const GUIDE_STORAGE_KEY = 'teacherGuideData'
 
 function initGuide(): TeacherGuide {
   const saved = loadSaved<TeacherGuide>()
-  if (saved) return saved
+  if (saved) {
+    const parsed = normalizeGuide(saved)
+    if (parsed) return parsed
+  }
   return createDefaultGuide()
 }
 
@@ -72,7 +76,10 @@ export default function App() {
     const saved = loadSaved<TeacherGuide>()
     if (saved) {
       const parsed = normalizeGuide(saved)
-      if (parsed) setGuide(parsed)
+      if (parsed) {
+        setGuide(parsed)
+        localStorage.setItem(GUIDE_STORAGE_KEY, JSON.stringify(parsed))
+      }
       setIsImporting(false)
       window.history.replaceState({}, '', window.location.pathname)
       return
@@ -118,6 +125,10 @@ export default function App() {
 
   const exportPDF = () => setPrintMode(true)
 
+  const backToGenerator = () => {
+    window.location.href = '/'
+  }
+
   // ── Reset (two-click guard) ─────────────────────────────────────
   const handleReset = () => {
     if (resetStep === 0) {
@@ -148,6 +159,7 @@ export default function App() {
         resetStep={resetStep}
         saveStatus={status}
         onTogglePreview={() => setPreview((p) => !p)}
+        onBackToGenerator={backToGenerator}
         onExportHTML={exportHTML}
         onExportPDF={exportPDF}
         onReset={handleReset}
@@ -191,6 +203,13 @@ export default function App() {
         <CollapsibleSection title="9. Bonus Activities" defaultOpen={false} badge={guide.bonusActivities.filter(Boolean).length || undefined} forceOpen={printMode}>
           <BonusActivitiesSection items={guide.bonusActivities} onChange={v => set('bonusActivities', v)} readOnly={preview} />
         </CollapsibleSection>
+
+        <CustomSectionsSection
+          sections={guide.customSections || []}
+          onChange={(sections) => set('customSections', sections)}
+          readOnly={preview}
+          forceOpen={printMode}
+        />
 
       </main>
 

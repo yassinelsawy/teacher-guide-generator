@@ -10,6 +10,8 @@ interface CollapsibleSectionProps {
   children: ReactNode
   className?: string
   forceOpen?: boolean
+  leadingContent?: ReactNode
+  headerContent?: ReactNode
 }
 
 export function CollapsibleSection({
@@ -19,23 +21,38 @@ export function CollapsibleSection({
   children,
   className,
   forceOpen = false,
+  leadingContent,
+  headerContent,
 }: CollapsibleSectionProps) {
   const [open, setOpen] = useState(defaultOpen)
 
   return (
     <Collapsible.Root open={forceOpen || open} onOpenChange={setOpen} className={cn('w-full', className)}>
       <div className="rounded-xl border bg-card shadow-sm">
-        <Collapsible.Trigger className="flex w-full items-center gap-3 px-6 py-4 text-left hover:bg-accent/40 transition-colors rounded-xl">
-          {open
-            ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
-            : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
-          <span className="font-semibold text-base flex-1">{title}</span>
-          {badge !== undefined && (
-            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-              {badge}
-            </span>
+        <div className="px-6 py-4 hover:bg-accent/40 transition-colors rounded-xl">
+          <div className="flex items-center gap-3 text-left">
+            {leadingContent}
+
+            <Collapsible.Trigger className="flex min-w-0 flex-1 items-center gap-3 text-left">
+              {open
+                ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
+              <span className="font-semibold text-base flex-1 truncate">{title}</span>
+            </Collapsible.Trigger>
+
+            {badge !== undefined && (
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                {badge}
+              </span>
+            )}
+          </div>
+
+          {headerContent && (
+            <div className="mt-3 border-t pt-3">
+              {headerContent}
+            </div>
           )}
-        </Collapsible.Trigger>
+        </div>
 
         <Collapsible.Content>
           <div className="border-t px-6 pb-6 pt-5">{children}</div>

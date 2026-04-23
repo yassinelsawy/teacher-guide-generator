@@ -9,14 +9,17 @@
 <body data-upload-api-base-url="{{ upload_api_base_url | e }}">
 <div class="container">
 
-  <!-- Header -->
-  <div class="header">
-    <h1>&#128196; Teacher Guide Generator</h1>
-    <p>Upload a PDF &rarr; Gemini generates a structured guide &rarr; Opens in the editor automatically</p>
+  <div class="top-brand" aria-label="iSchool brand">
+    <img src="/static/assets/iSchool.png" alt="iSchool" class="top-brand-logo" />
   </div>
 
   <!-- Upload Card -->
   <div class="card">
+    <div class="card-head">
+      <h1>Teacher Guide Generator</h1>
+      <p>Upload your PDF and generate an editable teaching guide.</p>
+    </div>
+
     <div class="dropzone" id="dropzone">
       <input type="file" id="file-input" accept=".pdf" aria-label="Upload PDF file" title="Upload PDF file" />
       <div class="dropzone-icon">&#128193;</div>
@@ -24,6 +27,11 @@
       <small>Accepted: .pdf files only</small>
       <span id="file-label"></span>
     </div>
+
+    <!-- <div class="file-chip" id="file-chip" hidden aria-live="polite">
+      <span class="file-chip-name" id="file-chip-name"></span>
+      <span class="file-chip-size" id="file-chip-size"></span>
+    </div> -->
 
     <div class="alert alert-error" id="error-box"></div>
 
@@ -33,23 +41,33 @@
     </div>
 
     <div class="btn-stack">
-      <button class="btn btn-full" id="generate-btn">Generate Teacher Guide</button>
-      <button class="btn btn-full import-guide-btn" id="import-guide-btn" type="button">Import Guide (.html)</button>
+      <button class="btn btn-full btn-main" id="generate-btn" data-default-label="Generate">
+        <span class="btn-icon" aria-hidden="true">&#9889;</span>
+        <span class="btn-copy">
+          <span class="btn-title" id="generate-btn-title">Generate</span>
+        </span>
+      </button>
+      <button class="btn btn-full import-guide-btn" id="import-guide-btn" type="button">
+        <span class="btn-icon" aria-hidden="true">&#128194;</span>
+        <span class="btn-copy">
+          <span class="btn-title">Import from HTML</span>
+        </span>
+      </button>
     </div>
     <input type="file" id="import-guide-input" accept="text/html" hidden />
   </div>
 
-  <!-- Success card (shown after generation) -->
-  <div id="success-section">
-    <div class="card success-card">
-      <div class="success-icon">&#10003;</div>
-      <div class="success-title" id="success-title">Teacher Guide Generated!</div>
-      <p class="success-sub">Opening the structured editor&hellip;</p>
-      <button class="btn" id="open-editor-btn">&#9998; Open in Editor</button>
+  <!-- Floating success toast -->
+  <div id="success-toast" class="success-toast" role="status" aria-live="polite" aria-atomic="true">
+    <div class="success-toast-icon" aria-hidden="true">&#10003;</div>
+    <div class="success-toast-copy">
+      <p class="success-toast-title" id="success-title">Teacher Guide generated successfully</p>
+      <p class="success-toast-sub">Opening the editor...</p>
     </div>
+    <button class="success-toast-action" id="open-editor-btn" type="button">Open Editor</button>
   </div>
 
-  <p class="footer">Powered by FastAPI &middot; Gemini 2.0 Flash &middot; ReportLab</p>
+  <!-- <p class="footer">Powered by iSchool</p> -->
 
 </div>
 

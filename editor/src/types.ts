@@ -52,6 +52,50 @@ export interface GlossaryEntry {
   definition: string
 }
 
+export const CUSTOM_SECTION_TYPES = [
+  { value: 'lessonInfo', label: 'Lesson Info' },
+  { value: 'overview', label: 'Overview' },
+  { value: 'learningOutcomes', label: 'Learning Outcomes' },
+  { value: 'preparation', label: 'Preparation' },
+  { value: 'outlineOverview', label: 'Outline Overview' },
+  { value: 'lessonProcedure', label: 'Lesson Procedure' },
+  { value: 'publishingGuide', label: 'Publishing Guide' },
+  { value: 'glossary', label: 'Glossary' },
+  { value: 'bonusActivities', label: 'Bonus Activities' },
+  { value: 'text', label: 'Text Block' },
+] as const
+
+export type CustomSectionType = (typeof CUSTOM_SECTION_TYPES)[number]['value']
+
+export const CUSTOM_SECTION_TYPE_LABELS: Record<CustomSectionType, string> = {
+  lessonInfo: 'Lesson Info',
+  overview: 'Overview',
+  learningOutcomes: 'Learning Outcomes',
+  preparation: 'Preparation',
+  outlineOverview: 'Outline Overview',
+  lessonProcedure: 'Lesson Procedure',
+  publishingGuide: 'Publishing Guide',
+  glossary: 'Glossary',
+  bonusActivities: 'Bonus Activities',
+  text: 'Text Block',
+}
+
+export interface CustomSection {
+  id: string
+  sectionType: CustomSectionType
+  title: string
+  lessonInfo: LessonInfo
+  overview: string
+  learningOutcomes: string[]
+  preparation: string[]
+  outlineOverview: OutlineRow[]
+  lessonProcedure: Activity[]
+  publishingGuide: string[]
+  glossary: GlossaryEntry[]
+  bonusActivities: string[]
+  text: string
+}
+
 export interface TeacherGuide {
   lessonInfo: LessonInfo
   overview: string           // HTML
@@ -62,9 +106,34 @@ export interface TeacherGuide {
   publishingGuide: string[]
   glossary: GlossaryEntry[]
   bonusActivities: string[]
+  customSections: CustomSection[]
 }
 
 // ─── Factory ──────────────────────────────────────────────────────────────────
+
+export function createCustomSection(sectionType: CustomSectionType = 'text'): CustomSection {
+  return {
+    id: crypto.randomUUID(),
+    sectionType,
+    title: CUSTOM_SECTION_TYPE_LABELS[sectionType],
+    lessonInfo: {
+      lessonName: '',
+      gradeLevel: '',
+      moduleLink: '',
+      slidesLink: '',
+      productionState: 'Draft',
+    },
+    overview: '',
+    learningOutcomes: [''],
+    preparation: [''],
+    outlineOverview: [],
+    lessonProcedure: [],
+    publishingGuide: [''],
+    glossary: [{ id: crypto.randomUUID(), concept: '', definition: '' }],
+    bonusActivities: [''],
+    text: '',
+  }
+}
 
 export function createDefaultGuide(): TeacherGuide {
   return {
@@ -101,6 +170,7 @@ export function createDefaultGuide(): TeacherGuide {
     publishingGuide: [''],
     glossary: [{ id: crypto.randomUUID(), concept: '', definition: '' }],
     bonusActivities: [],
+    customSections: [],
   }
 }
 
@@ -117,6 +187,7 @@ export function guideToExportJSON(guide: TeacherGuide) {
     publishingGuide: guide.publishingGuide.filter(Boolean),
     glossary: guide.glossary.map(({ id: _id, ...rest }) => rest),
     bonusActivities: guide.bonusActivities.filter(Boolean),
+    customSections: guide.customSections.map(({ id: _id, ...rest }) => rest),
   }
 }
 
@@ -189,6 +260,81 @@ export function guideToHTML(guide: TeacherGuide): string {
     parts.push(tag('h2', 'Bonus Activities'))
     parts.push(`<ul>${bonus.map(b => tag('li', b)).join('')}</ul>`)
   }
+
+  guide.customSections
+    .filter((section) => section.title || section.text)
+    .forEach((section) => {
+      parts.push(tag('h2', section.title || CUSTOM_SECTION_TYPE_LABELS[section.sectionType] || 'Custom Section'))
+
+      switch (section.sectionType) {
+        case 'lessonInfo': {
+          const meta = [
+            section.lessonInfo.lessonName && `Lesson: ${section.lessonInfo.lessonName}`,
+            section.lessonInfo.gradeLevel && `Grade: ${section.lessonInfo.gradeLevel}`,
+            section.lessonInfo.moduleLink && `Module: ${section.lessonInfo.moduleLink}`,
+            section.lessonInfo.slidesLink && `Slides: ${section.lessonInfo.slidesLink}`,
+            section.lessonInfo.productionState && `Status: ${section.lessonInfo.productionState}`,
+          ].filter(Boolean).join(' · ')
+          if (meta) parts.push(tag('p', meta))
+          break
+        }
+        case 'overview':
+          if (section.overview) parts.push(section.overview)
+          break
+        case 'learningOutcomes': {
+          const items = section.learningOutcomes.filter(Boolean)
+          if (items.length) parts.push(`<ul>${items.map((item) => tag('li', item)).join('')}</ul>`)
+          break
+        }
+        case 'preparation': {
+          const items = section.preparation.filter(Boolean)
+          if (items.length) parts.push(`<ul>${items.map((item) => tag('li', item)).join('')}</ul>`)
+          break
+        }
+        case 'outlineOverview': {
+          if (section.outlineOverview.length) {
+            const rows = section.outlineOverview
+              .map((row) => `<li><strong>${row.sectionName}</strong>${row.pedagogy ? ` – ${row.pedagogy}` : ''}${row.durationMinutes ? ` (${row.durationMinutes} min)` : ''}${row.slideNumbers ? ` · Slides: ${row.slideNumbers}` : ''}</li>`)
+              .join('')
+            parts.push(`<ul>${rows}</ul>`)
+          }
+          break
+        }
+        case 'lessonProcedure': {
+          section.lessonProcedure.forEach((act) => {
+            const header = [
+              act.activityTitle,
+              `[${act.activityType}]`,
+              act.duration ? `${act.duration} min` : '',
+              act.slideNumbers ? `Slides: ${act.slideNumbers}` : '',
+            ].filter(Boolean).join(' · ')
+            parts.push(tag('h3', header))
+            if (act.instructions) parts.push(act.instructions)
+          })
+          break
+        }
+        case 'publishingGuide': {
+          const steps = section.publishingGuide.filter(Boolean)
+          if (steps.length) parts.push(`<ol>${steps.map((step) => tag('li', step)).join('')}</ol>`)
+          break
+        }
+        case 'glossary': {
+          if (section.glossary.length) {
+            parts.push(`<ul>${section.glossary.map((entry) => `<li><strong>${entry.concept}:</strong> ${entry.definition}</li>`).join('')}</ul>`)
+          }
+          break
+        }
+        case 'bonusActivities': {
+          const items = section.bonusActivities.filter(Boolean)
+          if (items.length) parts.push(`<ul>${items.map((item) => tag('li', item)).join('')}</ul>`)
+          break
+        }
+        case 'text':
+        default:
+          if (section.text) parts.push(section.text)
+          break
+      }
+    })
 
   return parts.join('\n')
 }

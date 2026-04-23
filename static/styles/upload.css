@@ -3,40 +3,69 @@
 
 body {
   font-family: 'Segoe UI', Arial, sans-serif;
-  background: #f0f4f8;
+  background:
+    radial-gradient(1200px 520px at 50% -140px, #e8f3ff 0%, #f0f4f8 50%),
+    #f0f4f8;
   color: #1a202c;
   min-height: 100vh;
   padding: 2rem 1rem;
 }
 
 /* ── Layout ───────────────────────────────────────────────────────── */
-.container { max-width: 860px; margin: 0 auto; }
+.container { max-width: 920px; margin: 0 auto; }
 
-/* ── Header ───────────────────────────────────────────────────────── */
-.header { text-align: center; margin-bottom: 2rem; }
-.header h1 { font-size: 1.9rem; font-weight: 700; }
-.header p  { color: #718096; font-size: .95rem; margin-top: .35rem; }
+/* ── Top Brand ────────────────────────────────────────────────────── */
+.top-brand {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.top-brand-logo {
+  width: clamp(190px, 28vw, 330px);
+  max-width: 90%;
+  height: auto;
+  object-fit: contain;
+}
 
 /* ── Card ─────────────────────────────────────────────────────────── */
 .card {
-  background: #fff;
-  border-radius: 14px;
-  box-shadow: 0 4px 24px rgba(0,0,0,.08);
-  padding: 2rem 2.2rem;
+  background: linear-gradient(180deg, #ffffff 0%, #fdfefe 100%);
+  border-radius: 18px;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, .12);
+  padding: clamp(1.1rem, 2.8vw, 2rem) clamp(1rem, 3vw, 2.2rem);
   margin-bottom: 1.5rem;
+}
+
+/* ── Card Header ─────────────────────────────────────────────────── */
+.card-head {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.card-head h1 {
+  font-size: clamp(1.2rem, 2.6vw, 1.7rem);
+  color: #0f172a;
+  font-weight: 800;
+}
+
+.card-head p {
+  margin-top: .35rem;
+  color: #64748b;
+  font-size: .92rem;
 }
 
 /* ── Drop Zone ────────────────────────────────────────────────────── */
 .dropzone {
   border: 2.5px dashed #c3dafe;
   border-radius: 12px;
-  background: #f7faff;
-  padding: 2rem 1.5rem;
+  background: linear-gradient(180deg, #f8fbff 0%, #f3f7fd 100%);
+  padding: clamp(1.2rem, 3vw, 2rem) clamp(.9rem, 2.8vw, 1.5rem);
   text-align: center;
   cursor: pointer;
   transition: border-color .2s, background .2s;
   position: relative;
-  margin-bottom: 1.2rem;
+  margin-bottom: .9rem;
 }
 .dropzone:hover,
 .dropzone.drag-over {
@@ -64,18 +93,53 @@ body {
   min-height: 1.1em;
 }
 
+/* ── Selected File Chip ──────────────────────────────────────────── */
+.file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  margin: 0 0 1rem;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1e3a8a;
+  border-radius: 999px;
+  padding: .35rem .65rem;
+  max-width: 100%;
+}
+
+.file-chip-name {
+  font-size: .78rem;
+  font-weight: 700;
+  max-width: 260px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-chip-size {
+  font-size: .72rem;
+  color: #1d4ed8;
+  background: #dbeafe;
+  border-radius: 999px;
+  padding: .1rem .45rem;
+}
+
 /* ── Buttons ──────────────────────────────────────────────────────── */
 .btn {
-  display: inline-block;
-  padding: .8rem 1.6rem;
-  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: .8rem;
+  padding: .95rem 1.05rem;
+  background: linear-gradient(135deg, #1d4ed8, #2563eb);
   color: #fff;
-  font-size: .95rem;
-  font-weight: 600;
+  font-size: 1.03rem;
+  font-weight: 700;
   border: none;
-  border-radius: 10px;
+  border-radius: 14px;
   cursor: pointer;
-  transition: opacity .2s, transform .1s;
+  transition: opacity .2s, transform .1s, box-shadow .2s;
+  box-shadow: 0 10px 22px rgba(29, 78, 216, .25);
 }
 .btn:hover  { opacity: .9; }
 .btn:active { transform: scale(.97); }
@@ -84,13 +148,57 @@ body {
 
 .btn-full  { 
   width: 100%; 
-  display: block; 
-  text-align: center; }
+  text-align: left; }
 
-#generate-btn { margin-bottom: 2.5rem; }
+.btn-main {
+  background: linear-gradient(135deg, #1d4ed8, #0f5be0);
+}
+
+.btn-icon {
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .18);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 1.2rem;
+}
+
+.btn-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.btn-title {
+  font-size: 1.08rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.btn-sub {
+  font-size: .73rem;
+  font-weight: 500;
+  opacity: .92;
+  margin-top: .12rem;
+  line-height: 1.2;
+}
+
+#generate-btn { margin-bottom: 0; }
 
 .import-guide-btn {
-  margin-top: 24px;
+  margin-top: 0;
+  background: linear-gradient(135deg, #0f766e, #0891b2);
+  box-shadow: 0 10px 22px rgba(8, 145, 178, .25);
+}
+
+.btn-stack {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .75rem;
 }
 
 .btn-download {
@@ -102,40 +210,81 @@ body {
   background: linear-gradient(135deg, #0891b2, #6366f1);
 }
 
-/* ── Success card ─────────────────────────────────────────────────── */
-#success-section { display: none; }
-#success-section.show { display: block; }
-
-.success-card {
-  text-align: center;
-  padding: 2.5rem 2rem;
-}
-.success-icon {
-  width: 60px; height: 60px;
-  background: #d1fae5;
-  color: #059669;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 1.8rem;
-  margin: 0 auto 1rem;
-}
-.success-title {
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: #1a202c;
-  margin-bottom: .4rem;
-}
-.success-sub {
-  color: #718096;
-  font-size: .9rem;
-  margin-bottom: 1.2rem;
-}
-
-.btn-row {
+/* ── Success Toast ────────────────────────────────────────────────── */
+.success-toast {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 80;
   display: flex;
-  gap: .8rem;
-  flex-wrap: wrap;
-  margin-top: 1.5rem;
+  align-items: center;
+  gap: .75rem;
+  width: min(90vw, 360px);
+  border: 1px solid #bbf7d0;
+  background: linear-gradient(145deg, #f0fdf4, #dcfce7);
+  color: #14532d;
+  border-radius: 14px;
+  padding: .72rem .82rem;
+  box-shadow: 0 16px 30px rgba(20, 83, 45, .18);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-8px);
+  transition: opacity .2s ease, transform .2s ease;
+}
+
+.success-toast.show {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.success-toast-icon {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: #16a34a;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .96rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.success-toast-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.success-toast-title {
+  font-size: .92rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.success-toast-sub {
+  font-size: .8rem;
+  color: #166534;
+  margin-top: .15rem;
+}
+
+.success-toast-action {
+  flex-shrink: 0;
+  pointer-events: auto;
+  border: none;
+  border-radius: 999px;
+  padding: .55rem .85rem;
+  background: #16a34a;
+  color: #fff;
+  font-size: .8rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(22, 163, 74, .25);
+}
+
+.success-toast-action:hover {
+  background: #15803d;
 }
 
 /* ── Spinner ──────────────────────────────────────────────────────── */
@@ -309,8 +458,78 @@ textarea.field:focus {
 .footer {
   text-align: center;
   font-size: .75rem;
-  color: #a0aec0;
+  color: #94a3b8;
   margin-top: 2rem;
+}
+
+@media (max-width: 640px) {
+  body {
+    padding: 1rem .7rem;
+  }
+
+  .top-brand {
+    margin-bottom: .7rem;
+  }
+
+  .top-brand-logo {
+    width: clamp(160px, 55vw, 230px);
+  }
+
+  .card {
+    border-radius: 14px;
+  }
+
+  .card-head {
+    margin-bottom: .9rem;
+  }
+
+  .card-head p {
+    font-size: .86rem;
+  }
+
+  .file-chip {
+    display: flex;
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .file-chip-name {
+    max-width: 100%;
+    flex: 1;
+  }
+
+  .btn-stack {
+    grid-template-columns: 1fr;
+  }
+
+  .btn {
+    border-radius: 12px;
+    padding: .88rem .95rem;
+    gap: .7rem;
+    font-size: .98rem;
+  }
+
+  .btn-icon {
+    width: 2.15rem;
+    height: 2.15rem;
+    font-size: 1.08rem;
+  }
+
+  .btn-title {
+    font-size: 1rem;
+  }
+
+  .success-toast {
+    left: .7rem;
+    right: .7rem;
+    top: .7rem;
+    width: auto;
+    align-items: flex-start;
+  }
+
+  .success-toast-action {
+    margin-left: .25rem;
+  }
 }
 
 /* ── PDF Button ───────────────────────────────────────────────────── */

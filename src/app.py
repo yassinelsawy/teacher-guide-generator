@@ -24,7 +24,31 @@ logger = logging.getLogger(__name__)
 # Temporary in-memory store for generated guides (token -> guide dict)
 pending_guides: dict[str, dict] = {}
 
+
+class ImmutableStaticFiles(StaticFiles):
+    """Serves content-hashed build assets with cache-forever headers.
+
+    Vite fingerprints these filenames by content hash, so a changed file always
+    gets a new name — safe to cache indefinitely and avoids stale HTML shells
+    referencing since-deleted asset files after a redeploy.
+    """
+
+    def file_response(self, *args, **kwargs):
+        response = super().file_response(*args, **kwargs)
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        return response
+
+
 app = FastAPI(title="PDF -> Teacher Guide Generator")
+# Must be mounted before the general /static mount so its more specific
+# prefix takes precedence for editor asset requests.
+_editor_assets_dir = EDITOR_BUILD_INDEX.parent / "assets"
+if _editor_assets_dir.is_dir():
+    app.mount(
+        "/static/editor/assets",
+        ImmutableStaticFiles(directory=_editor_assets_dir),
+        name="editor-assets",
+    )
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
@@ -38,7 +62,7 @@ app.add_middleware(
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         request=request,
         name="index.html",
         context={
@@ -46,6 +70,8 @@ async def index(request: Request):
             "upload_api_base_url": UPLOAD_API_BASE_URL,
         },
     )
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @app.get("/editor", response_class=HTMLResponse)
@@ -60,7 +86,9 @@ async def editor_shell():
             ),
         )
 
-    return FileResponse(EDITOR_BUILD_INDEX)
+    response = FileResponse(EDITOR_BUILD_INDEX)
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @app.post("/upload")

@@ -1,5 +1,5 @@
 // Shared top toolbar for guide status and export controls.
-import { Download, Eye, EyeOff, RotateCcw, BookOpen, Save, AlertCircle } from 'lucide-react'
+import { Download, Eye, EyeOff, RotateCcw, BookOpen, Save, AlertCircle, Undo2 } from 'lucide-react'
 import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -12,6 +12,8 @@ interface EditorToolbarProps {
   printMode: boolean
   resetStep: 0 | 1
   saveStatus: 'idle' | 'saving' | 'saved' | 'error'
+  canUndo: boolean
+  onUndo: () => void
   onTogglePreview: () => void
   onBackToGenerator: () => void
   onExportHTML: () => void
@@ -27,6 +29,8 @@ export function EditorToolbar({
   printMode,
   resetStep,
   saveStatus,
+  canUndo,
+  onUndo,
   onTogglePreview,
   onBackToGenerator,
   onExportHTML,
@@ -87,6 +91,17 @@ export function EditorToolbar({
 
         <Button type="button" variant="outline" size="sm" onClick={onExportPDF} disabled={printMode}>
           <Download className="mr-1.5 h-4 w-4" /> {printMode ? 'Preparing…' : 'Export PDF'}
+        </Button>
+
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onUndo}
+          disabled={!canUndo}
+          title="Undo last change"
+        >
+          <Undo2 className="mr-1.5 h-4 w-4" /> Undo
         </Button>
 
         <Button

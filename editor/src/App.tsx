@@ -13,6 +13,7 @@ import { GlossarySection }         from '@/components/sections/GlossarySection'
 import { BonusActivitiesSection }  from '@/components/sections/BonusActivitiesSection'
 import { CustomSectionsSection }   from '@/components/sections/CustomSectionsSection'
 import { useAutoSave, loadSaved }  from '@/hooks/useAutoSave'
+import { useUndoableState }        from '@/hooks/useUndoableState'
 import { normalizeGuide } from '@/editor/guideNormalization'
 import { exportGuideAsHTML } from '@/services/exportService'
 import { createDefaultGuide, type TeacherGuide } from '@/types'
@@ -31,7 +32,7 @@ function initGuide(): TeacherGuide {
 }
 
 export default function App() {
-  const [guide, setGuide] = useState<TeacherGuide>(initGuide)
+  const { value: guide, set: setGuide, undo: undoGuide, canUndo } = useUndoableState<TeacherGuide>(initGuide)
   const [preview, setPreview]   = useState(false)
   const [resetStep, setResetStep] = useState<0 | 1>(0)
   const [printMode, setPrintMode] = useState(false)
@@ -158,6 +159,8 @@ export default function App() {
         printMode={printMode}
         resetStep={resetStep}
         saveStatus={status}
+        canUndo={canUndo}
+        onUndo={undoGuide}
         onTogglePreview={() => setPreview((p) => !p)}
         onBackToGenerator={backToGenerator}
         onExportHTML={exportHTML}

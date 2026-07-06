@@ -3,7 +3,7 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import Placeholder from '@tiptap/extension-placeholder'
-import Image from '@tiptap/extension-image'
+import { ImageWithDelete } from '@/components/tiptap/ImageWithDelete'
 import {
   Bold,
   ImagePlus,
@@ -42,7 +42,7 @@ export function RichTextEditor({
       StarterKit,
       Underline,
       Placeholder.configure({ placeholder }),
-      Image.configure({ allowBase64: true }),
+      ImageWithDelete.configure({ allowBase64: true }),
     ],
     content,
     editable: !readOnly,
@@ -77,8 +77,12 @@ export function RichTextEditor({
     reader.readAsDataURL(file)
   }
 
-  const applyPendingImage = (dataUrl: string, fileName: string) => {
-    editor.chain().focus().setImage({ src: dataUrl, alt: fileName }).run()
+  const applyPendingImage = (dataUrl: string, fileName: string, width: number | null, height: number | null) => {
+    editor
+      .chain()
+      .focus()
+      .insertContent({ type: 'image', attrs: { src: dataUrl, alt: fileName, width, height } })
+      .run()
     setPendingImage(null)
   }
 

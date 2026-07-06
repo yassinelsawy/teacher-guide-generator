@@ -9,7 +9,7 @@ interface ImageEditDialogProps {
   src: string
   fileName: string
   onCancel: () => void
-  onApply: (dataUrl: string, fileName: string) => void
+  onApply: (dataUrl: string, fileName: string, width: number | null, height: number | null) => void
 }
 
 function fullCrop(): Crop {
@@ -91,15 +91,15 @@ export function ImageEditDialog({ src, fileName, onCancel, onApply }: ImageEditD
 
   const handleApply = () => {
     if (!imgRef.current || !completedCrop || completedCrop.width === 0 || completedCrop.height === 0) {
-      onApply(src, fileName)
+      onApply(src, fileName, null, null)
       return
     }
     const dataUrl = getCroppedDataUrl(imgRef.current, completedCrop, width, height)
-    onApply(dataUrl, fileName)
+    onApply(dataUrl, fileName, width, height)
   }
 
   const handleInsertOriginal = () => {
-    onApply(src, fileName)
+    onApply(src, fileName, null, null)
   }
 
   return (

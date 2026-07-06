@@ -18,7 +18,7 @@ import {
   useSortable,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, Plus, Trash2 } from 'lucide-react'
+import { Copy, GripVertical, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -52,6 +52,38 @@ interface Props {
 
 function labelForType(sectionType: CustomSectionType) {
   return CUSTOM_SECTION_TYPE_LABELS[sectionType] || 'Custom Section'
+}
+
+function isHtmlEmpty(html: string): boolean {
+  return !html || !html.replace(/<[^>]+>/g, '').trim()
+}
+
+function isSectionEmpty(section: CustomSection): boolean {
+  switch (section.sectionType) {
+    case 'lessonInfo': {
+      const { lessonName, gradeLevel, moduleLink, slidesLink } = section.lessonInfo
+      return ![lessonName, gradeLevel, moduleLink, slidesLink].some((value) => value.trim())
+    }
+    case 'overview':
+      return isHtmlEmpty(section.overview)
+    case 'learningOutcomes':
+      return section.learningOutcomes.every((item) => !item.trim())
+    case 'preparation':
+      return section.preparation.every((item) => !item.trim())
+    case 'outlineOverview':
+      return section.outlineOverview.length === 0
+    case 'lessonProcedure':
+      return section.lessonProcedure.length === 0
+    case 'publishingGuide':
+      return section.publishingGuide.every((item) => !item.trim())
+    case 'glossary':
+      return section.glossary.every((entry) => !entry.concept.trim() && !entry.definition.trim())
+    case 'bonusActivities':
+      return section.bonusActivities.every((item) => !item.trim())
+    case 'text':
+    default:
+      return isHtmlEmpty(section.text)
+  }
 }
 
 function SectionBody({
@@ -101,22 +133,36 @@ function SortableSectionCard({
   index,
   onChange,
   onRemove,
+  onDuplicate,
   readOnly = false,
   forceOpen = false,
   isDragging = false,
+  autoFocus = false,
+  onAutoFocused,
 }: {
   section: CustomSection
   index: number
   onChange: (updated: CustomSection) => void
   onRemove: () => void
+  onDuplicate: () => void
   readOnly?: boolean
   forceOpen?: boolean
   isDragging?: boolean
+  autoFocus?: boolean
+  onAutoFocused?: () => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging: sortableDragging } = useSortable({ id: section.id })
   const cardRef = useRef<HTMLDivElement | null>(null)
+  const titleInputRef = useRef<HTMLInputElement | null>(null)
+  const [deleteArmed, setDeleteArmed] = useState(false)
+  const deleteTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const updateType = (nextType: CustomSectionType) => {
+    if (nextType === section.sectionType) return
+    if (!isSectionEmpty(section)) {
+      const confirmed = window.confirm('Changing the section type will clear the content currently in this section. Continue?')
+      if (!confirmed) return
+    }
     const next = createCustomSection(nextType)
     onChange({
       ...next,
@@ -124,6 +170,35 @@ function SortableSectionCard({
       title: section.title?.trim() || next.title,
     })
   }
+
+  const handleDeleteClick = () => {
+    if (!deleteArmed) {
+      setDeleteArmed(true)
+      deleteTimeoutRef.current = setTimeout(() => setDeleteArmed(false), 4000)
+      return
+    }
+    if (deleteTimeoutRef.current) clearTimeout(deleteTimeoutRef.current)
+    onRemove()
+  }
+
+  useEffect(() => {
+    return () => {
+      if (deleteTimeoutRef.current) clearTimeout(deleteTimeoutRef.current)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!autoFocus) return
+    cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    const id = setTimeout(() => {
+      titleInputRef.current?.focus()
+      titleInputRef.current?.select()
+    }, 250)
+    onAutoFocused?.()
+    return () => clearTimeout(id)
+    // Intentionally run once on mount — this only ever fires for a section right after it is created or duplicated.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const displayTitle = section.title.trim() || labelForType(section.sectionType)
 
@@ -161,6 +236,7 @@ function SortableSectionCard({
       <div className="space-y-1.5 min-w-0">
         <Label className="text-xs uppercase tracking-wide text-muted-foreground">Section Name</Label>
         <Input
+          ref={titleInputRef}
           value={section.title}
           onChange={(event) => onChange({ ...section, title: event.target.value })}
           placeholder="Enter section name"
@@ -169,8 +245,32 @@ function SortableSectionCard({
       </div>
 
       <div className="col-span-full flex items-center justify-end gap-2 sm:col-span-2 lg:col-span-1 lg:pb-[2px]">
-        <Button type="button" variant="ghost" size="icon" onClick={onRemove} className="h-10 w-10 text-destructive hover:text-destructive shrink-0">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={(event) => {
+            event.stopPropagation()
+            onDuplicate()
+          }}
+          className="h-10 w-10 text-muted-foreground hover:text-foreground shrink-0"
+          title="Duplicate section"
+        >
+          <Copy className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant={deleteArmed ? 'destructive' : 'ghost'}
+          size={deleteArmed ? 'sm' : 'icon'}
+          onClick={(event) => {
+            event.stopPropagation()
+            handleDeleteClick()
+          }}
+          className={cn('shrink-0', deleteArmed ? 'h-10 gap-1.5 px-3' : 'h-10 w-10 text-destructive hover:text-destructive')}
+          title={deleteArmed ? 'Click again to confirm delete' : 'Delete section'}
+        >
           <Trash2 className="h-4 w-4" />
+          {deleteArmed && <span className="text-xs font-medium">Confirm?</span>}
         </Button>
       </div>
     </div>
@@ -203,7 +303,7 @@ function SortableSectionCard({
       <CollapsibleSection
         title={`${index + 1}. ${displayTitle}`}
         badge={labelForType(section.sectionType)}
-        defaultOpen={!readOnly && index === 0}
+        defaultOpen={!readOnly && (index === 0 || autoFocus)}
         leadingContent={leadingContent}
         headerContent={headerContent}
         forceOpen={forceOpen}
@@ -217,6 +317,7 @@ function SortableSectionCard({
 export function CustomSectionsSection({ sections, onChange, readOnly = false, forceOpen = false }: Props) {
   const [activeId, setActiveId] = useState<string | null>(null)
   const [newSectionType, setNewSectionType] = useState<CustomSectionType>('text')
+  const [focusSectionId, setFocusSectionId] = useState<string | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -224,13 +325,28 @@ export function CustomSectionsSection({ sections, onChange, readOnly = false, fo
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
-  const addSection = () => onChange([...sections, createCustomSection(newSectionType)])
+  const addSection = () => {
+    const section = createCustomSection(newSectionType)
+    onChange([...sections, section])
+    setFocusSectionId(section.id)
+  }
 
   const updateSection = (id: string, updated: CustomSection) => {
     onChange(sections.map((section) => (section.id === id ? updated : section)))
   }
 
   const removeSection = (id: string) => onChange(sections.filter((section) => section.id !== id))
+
+  const duplicateSection = (id: string) => {
+    const index = sections.findIndex((section) => section.id === id)
+    if (index < 0) return
+    const clone: CustomSection = { ...structuredClone(sections[index]), id: crypto.randomUUID() }
+    clone.title = clone.title.trim() ? `${clone.title.trim()} (Copy)` : clone.title
+    const next = [...sections]
+    next.splice(index + 1, 0, clone)
+    onChange(next)
+    setFocusSectionId(clone.id)
+  }
 
   const handleDragEnd = ({ active, over }: DragEndEvent) => {
     setActiveId(null)
@@ -302,9 +418,12 @@ export function CustomSectionsSection({ sections, onChange, readOnly = false, fo
                   index={index}
                   onChange={(updated) => updateSection(section.id, updated)}
                   onRemove={() => removeSection(section.id)}
+                  onDuplicate={() => duplicateSection(section.id)}
                   readOnly={readOnly}
                   forceOpen={forceOpen}
                   isDragging={activeId === section.id}
+                  autoFocus={focusSectionId === section.id}
+                  onAutoFocused={() => setFocusSectionId(null)}
                 />
               ))}
             </div>

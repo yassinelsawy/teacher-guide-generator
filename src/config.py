@@ -8,12 +8,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
 GEMINI_MODEL_FALLBACKS = [
     model.strip()
     for model in os.getenv(
         "GEMINI_MODEL_FALLBACKS",
-        "gemini-2.0-flash,gemini-1.5-flash,gemini-1.5-pro",
+        "gemini-2.5-flash-lite",
     ).split(",")
     if model.strip()
 ]

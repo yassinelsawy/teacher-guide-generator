@@ -2,6 +2,8 @@
 
 Teacher Guide Generator is a FastAPI + React application that turns lesson PDFs into structured, editable teacher guides with Gemini, then opens them in a browser-based editor.
 
+The app now includes a branded generator landing page, a browser-tab favicon, a back button in the editor, and a more dynamic custom-sections workflow with drag-and-drop reordering.
+
 ## What The App Does
 
 ### Generator Page
@@ -9,12 +11,13 @@ Teacher Guide Generator is a FastAPI + React application that turns lesson PDFs 
 - Upload a `.pdf` by drag-and-drop or file picker.
 - Extract readable text from the PDF and send it to Gemini.
 - Show progress while the app uploads, extracts text, generates content, and finalizes the guide.
-- Return the generated guide in a one-time token flow and open it in the editor.
+- Show a success toast after generation and automatically open the editor.
 - Import an existing guide from an HTML file and load it into the editor.
+- Uses a branded iSchool header and a document-style favicon in the browser tab.
 
 ### Editor
 
-- Edit the guide in 9 structured sections:
+- Edit the guide in 10 structured sections:
   1. Lesson Info
   2. Overview
   3. Learning Outcomes
@@ -24,7 +27,10 @@ Teacher Guide Generator is a FastAPI + React application that turns lesson PDFs 
   7. Publishing Guide
   8. Glossary
   9. Bonus Activities
+- 10. Custom Sections
 - Collapse sections, preview read-only output, and autosave locally.
+- Use the Back button to return to the generator page.
+- Add custom sections with a selectable type, rename them, and reorder them with drag-and-drop.
 - Export the guide as standalone HTML.
 - Print the guide to PDF using the browser print flow.
 
@@ -193,4 +199,5 @@ The backend serves the generator page and built editor bundle from the same Fast
 
 - The generator stores uploaded guides temporarily in memory by token.
 - The editor autosaves to browser local storage.
+- The editor normalizes older saved guides on load so custom sections stay safe across updates.
 - The app expects the Gemini API key to be configured in your environment.

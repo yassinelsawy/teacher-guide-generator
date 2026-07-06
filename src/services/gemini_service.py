@@ -118,6 +118,14 @@ def generate_teacher_guide(file_name: str, slide_text: str) -> dict:
                         "https://aistudio.google.com/apikey"
                     ) from exc
 
+                if "503" in err_str or "UNAVAILABLE" in err_str or "overloaded" in err_str.lower():
+                    if attempt < max_retries - 1:
+                        time.sleep(per_model_delay)
+                        per_model_delay *= 2
+                        continue
+                    # This model is overloaded even after retries — try the next fallback model.
+                    break
+
                 raise
 
     raise RuntimeError(

@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
@@ -16,6 +16,7 @@ import {
   Redo,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { ImageEditDialog } from '@/components/ImageEditDialog'
 import { cn } from '@/lib/utils'
 
 interface RichTextEditorProps {
@@ -34,6 +35,7 @@ export function RichTextEditor({
   className,
 }: RichTextEditorProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const [pendingImage, setPendingImage] = useState<{ src: string; fileName: string } | null>(null)
 
   const editor = useEditor({
     extensions: [
@@ -70,9 +72,14 @@ export function RichTextEditor({
     const reader = new FileReader()
     reader.onload = () => {
       if (typeof reader.result !== 'string') return
-      editor.chain().focus().setImage({ src: reader.result, alt: file.name }).run()
+      setPendingImage({ src: reader.result, fileName: file.name })
     }
     reader.readAsDataURL(file)
+  }
+
+  const applyPendingImage = (dataUrl: string, fileName: string) => {
+    editor.chain().focus().setImage({ src: dataUrl, alt: fileName }).run()
+    setPendingImage(null)
   }
 
   const btn = (active: boolean, onClick: () => void, title: string, icon: React.ReactNode) => (
@@ -138,6 +145,14 @@ export function RichTextEditor({
       <div className="tiptap-content">
         <EditorContent editor={editor} />
       </div>
+      {pendingImage && (
+        <ImageEditDialog
+          src={pendingImage.src}
+          fileName={pendingImage.fileName}
+          onCancel={() => setPendingImage(null)}
+          onApply={applyPendingImage}
+        />
+      )}
     </div>
   )
 }

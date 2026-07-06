@@ -13,7 +13,7 @@ GEMINI_MODEL_FALLBACKS = [
     model.strip()
     for model in os.getenv(
         "GEMINI_MODEL_FALLBACKS",
-        "gemini-2.5-flash-lite",
+        "gemini-2.5-flash-lite,gemini-2.5-flash,gemini-2.0-flash,gemini-1.5-flash",
     ).split(",")
     if model.strip()
 ]

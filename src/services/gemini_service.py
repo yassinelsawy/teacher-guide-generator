@@ -174,9 +174,8 @@ def generate_teacher_guide(
     # hard configuration problem, so the client gets an actionable message.
     if hit_quota:
         raise GuideGenerationBusyError(
-            "Gemini API quota exhausted for this API key. Retrying won't help until the "
-            "quota resets. Add a new GEMINI_API_KEY or enable billing at "
-            "https://aistudio.google.com/apikey"
+            "The daily limit for AI guide generation has been reached. "
+            "Please try again tomorrow, or contact the administrator to raise the limit."
         ) from last_exc
 
     if hit_transient:

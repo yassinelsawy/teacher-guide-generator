@@ -13,7 +13,10 @@ GEMINI_MODEL_FALLBACKS = [
     model.strip()
     for model in os.getenv(
         "GEMINI_MODEL_FALLBACKS",
-        "gemini-2.5-flash-lite,gemini-2.5-flash,gemini-2.0-flash,gemini-1.5-flash",
+        # Chain of currently-available models across separate capacity pools, so a
+        # transient 503/429 on one has a healthy alternative. The retired 1.5-*
+        # models were removed — they 404 and only wasted the fallback chain.
+        "gemini-2.5-flash-lite,gemini-2.5-flash,gemini-flash-lite-latest,gemini-3.5-flash",
     ).split(",")
     if model.strip()
 ]

@@ -106,6 +106,7 @@ def generate_teacher_guide(
     min_call_budget = 8.0
     last_exc: Exception | None = None
     hit_transient = False
+    hit_quota = False
     model_candidates = [GEMINI_MODEL] + [m for m in GEMINI_MODEL_FALLBACKS if m != GEMINI_MODEL]
     tried_models: list[str] = []
 
@@ -146,6 +147,7 @@ def generate_teacher_guide(
 
                 if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
                     hit_transient = True
+                    hit_quota = True
                     retry_match = re.search(r"retry[\s_-]?(?:in|delay)[:\s]+([\d.]+)s", err_str, re.IGNORECASE)
                     suggested = float(retry_match.group(1)) if retry_match else per_model_delay
                     wait = max(suggested, per_model_delay)
@@ -167,8 +169,16 @@ def generate_teacher_guide(
 
                 raise
 
-    # Out of budget or models. Distinguish "transient/busy" (retryable) from a
-    # hard configuration problem so the client gets an actionable message.
+    # Out of budget or models. Distinguish quota exhaustion (needs a new key or
+    # billing — retrying won't help) from transient overload (retryable) from a
+    # hard configuration problem, so the client gets an actionable message.
+    if hit_quota:
+        raise GuideGenerationBusyError(
+            "Gemini API quota exhausted for this API key. Retrying won't help until the "
+            "quota resets. Add a new GEMINI_API_KEY or enable billing at "
+            "https://aistudio.google.com/apikey"
+        ) from last_exc
+
     if hit_transient:
         raise GuideGenerationBusyError(
             "The AI service is busy or the document is too large to process in time. "

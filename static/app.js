@@ -310,6 +310,39 @@ function getActivityType(title) {
   return 'Explore';
 }
 
+const ACTIVITY_TYPES = ['Recap', 'Task Review', 'Explore', 'Make', 'Evaluate', 'Share', 'Task at Home'];
+const ACTIVITY_TYPE_TOKEN = /\[(Recap|Task Review|Explore|Make|Evaluate|Share|Task at Home)\]/g;
+
+// Split an exported activity heading ("Title · [Type] · N min · Slides: X") back
+// into its parts. Without this, re-importing an exported guide folds the type
+// and duration into the title, and each round-trip compounds the pollution.
+function parseActivityHeader(rawTitle) {
+  let text = String(rawTitle || '');
+
+  let activityType = '';
+  const typeMatch = text.match(/\[(Recap|Task Review|Explore|Make|Evaluate|Share|Task at Home)\]/);
+  if (typeMatch) activityType = typeMatch[1];
+
+  let duration = 0;
+  const durMatch = text.match(/\b(\d+)\s*min\b/i);
+  if (durMatch) duration = Number(durMatch[1]);
+
+  let slideNumbers = '';
+  const slideMatch = text.match(/Slides?:\s*([^·]+)/i);
+  if (slideMatch) slideNumbers = slideMatch[1].trim();
+
+  const activityTitle = text
+    .replace(ACTIVITY_TYPE_TOKEN, ' ')
+    .replace(/\b\d+\s*min\b/gi, ' ')
+    .replace(/Slides?:\s*[^·]*/gi, ' ')
+    .replace(/\s*·\s*/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/^[\s·:–-]+|[\s·:–-]+$/g, '')
+    .trim();
+
+  return { activityTitle, activityType, duration, slideNumbers };
+}
+
 function parseLessonProcedure(nodes) {
   const activities = [];
   let current = null;
@@ -319,12 +352,13 @@ function parseLessonProcedure(nodes) {
     const instructions = extractHTML(current.content);
     if (!current.title && !instructions) return;
 
+    const parsed = parseActivityHeader(current.title);
     activities.push({
       id: crypto.randomUUID(),
-      activityType: getActivityType(current.title),
-      activityTitle: current.title || 'Learn',
-      duration: 10,
-      slideNumbers: '',
+      activityType: parsed.activityType || getActivityType(parsed.activityTitle),
+      activityTitle: parsed.activityTitle || 'Learn',
+      duration: parsed.duration || 10,
+      slideNumbers: parsed.slideNumbers,
       instructions,
     });
   };

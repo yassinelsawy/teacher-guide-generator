@@ -31,6 +31,20 @@ def dict_to_teacher_guide(data: dict, file_name: str) -> dict:
     prep = [p for p in data.get("preparation", []) if p]
     bonus = [b for b in data.get("bonusActivities", []) if b]
 
+    # Auto-fill the Outline Overview from the generated procedure so the section
+    # isn't empty after PDF generation. Each activity maps to one outline row.
+    outline_overview = [
+        {
+            "id": str(uuid.uuid4()),
+            "type": "",
+            "sectionName": act["activityTitle"],
+            "pedagogy": act["activityType"],
+            "durationMinutes": act["duration"],
+            "slideNumbers": act["slideNumbers"],
+        }
+        for act in lesson_procedure
+    ]
+
     return {
         "lessonInfo": {
             "lessonName": data.get("lessonName", file_name.replace("_", " ")),
@@ -42,7 +56,7 @@ def dict_to_teacher_guide(data: dict, file_name: str) -> dict:
         "overview": data.get("overview", ""),
         "learningOutcomes": outcomes or [""],
         "preparation": prep or [""],
-        "outlineOverview": [],
+        "outlineOverview": outline_overview,
         "lessonProcedure": lesson_procedure,
         "publishingGuide": [""],
         "glossary": glossary,

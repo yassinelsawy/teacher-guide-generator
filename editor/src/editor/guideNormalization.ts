@@ -2,6 +2,23 @@
 import { createCustomSection, type TeacherGuide, type CustomSectionType, CUSTOM_SECTION_TYPE_LABELS } from '@/types'
 import { isRecord } from '@/utils/objectUtils'
 
+const ACTIVITY_META_MARKER = /\[(Recap|Task Review|Explore|Make|Evaluate|Share|Task at Home)\]|\d+\s*min/i
+
+// Heals activity titles that absorbed the type/duration/slides from an exported
+// heading ("Title · [Explore] · 20 min"). Runs only when those markers are
+// present so legitimate titles are left untouched.
+function cleanActivityTitle(title: string): string {
+  if (!ACTIVITY_META_MARKER.test(title)) return title
+  return title
+    .replace(/\[(Recap|Task Review|Explore|Make|Evaluate|Share|Task at Home)\]/g, ' ')
+    .replace(/\b\d+\s*min\b/gi, ' ')
+    .replace(/Slides?:\s*[^·]*/gi, ' ')
+    .replace(/\s*·\s*/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/^[\s·:–-]+|[\s·:–-]+$/g, '')
+    .trim()
+}
+
 export function normalizeGuide(input: unknown): TeacherGuide | null {
   if (!isRecord(input) || !isRecord(input.lessonInfo)) return null
 
@@ -38,7 +55,7 @@ export function normalizeGuide(input: unknown): TeacherGuide | null {
         .map((act) => ({
           id: typeof act.id === 'string' ? act.id : crypto.randomUUID(),
           activityType: typeof act.activityType === 'string' ? act.activityType : 'Explore',
-          activityTitle: typeof act.activityTitle === 'string' ? act.activityTitle : '',
+          activityTitle: typeof act.activityTitle === 'string' ? cleanActivityTitle(act.activityTitle) : '',
           duration: typeof act.duration === 'number' && Number.isFinite(act.duration) ? act.duration : 10,
           slideNumbers: typeof act.slideNumbers === 'string' ? act.slideNumbers : '',
           instructions: typeof act.instructions === 'string' ? act.instructions : '',
@@ -95,7 +112,7 @@ export function normalizeGuide(input: unknown): TeacherGuide | null {
               ? section.lessonProcedure.filter(isRecord).map((act) => ({
                   id: typeof act.id === 'string' ? act.id : crypto.randomUUID(),
                   activityType: typeof act.activityType === 'string' ? act.activityType : 'Explore',
-                  activityTitle: typeof act.activityTitle === 'string' ? act.activityTitle : '',
+                  activityTitle: typeof act.activityTitle === 'string' ? cleanActivityTitle(act.activityTitle) : '',
                   duration: typeof act.duration === 'number' && Number.isFinite(act.duration) ? act.duration : 10,
                   slideNumbers: typeof act.slideNumbers === 'string' ? act.slideNumbers : '',
                   instructions: typeof act.instructions === 'string' ? act.instructions : '',

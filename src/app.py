@@ -14,7 +14,7 @@ from fastapi.templating import Jinja2Templates
 
 from src.config import CORS_ORIGINS, EDITOR_BUILD_INDEX, UPLOAD_API_BASE_URL, UPLOAD_DIR
 from src.data.sample_guide import SAMPLE_GUIDE
-from src.services.gemini_service import generate_teacher_guide
+from src.services.gemini_service import GuideGenerationBusyError, generate_teacher_guide
 from src.services.guide_service import dict_to_teacher_guide, teacher_guide_to_html
 from src.services.pdf_service import export_pdf_buffer, safe_pdf_filename
 from src.utils.pdf_text import extract_text_from_pdf
@@ -23,6 +23,10 @@ logger = logging.getLogger(__name__)
 
 # Temporary in-memory store for generated guides (token -> guide dict)
 pending_guides: dict[str, dict] = {}
+
+# Upper bound on PDF text sent to Gemini. Large decks can push generation past
+# the serverless timeout; this keeps latency predictable without losing the gist.
+MAX_SLIDE_TEXT_CHARS = 60_000
 
 
 class ImmutableStaticFiles(StaticFiles):
@@ -107,12 +111,20 @@ async def upload(file: UploadFile = File(...)):
         if not slide_text.strip():
             return JSONResponse(status_code=422, content={"error": "No readable text found in the uploaded PDF."})
 
+        # Cap the prompt size: very long decks slow generation enough to risk the
+        # serverless timeout, and the guide only needs a representative sample.
+        if len(slide_text) > MAX_SLIDE_TEXT_CHARS:
+            slide_text = slide_text[:MAX_SLIDE_TEXT_CHARS]
+
         gemini_data = generate_teacher_guide(file_name, slide_text)
         guide = dict_to_teacher_guide(gemini_data, file_name)
         token = secrets.token_urlsafe(16)
         pending_guides[token] = guide
 
         return JSONResponse(content={"token": token, "file_name": file_name, "guide": guide})
+    except GuideGenerationBusyError as exc:
+        logger.warning("Guide generation busy/timed out for file '%s': %s", file.filename, exc)
+        return JSONResponse(status_code=503, content={"error": str(exc)})
     except Exception:
         logger.exception("Guide generation failed for file '%s'", file.filename)
         return JSONResponse(

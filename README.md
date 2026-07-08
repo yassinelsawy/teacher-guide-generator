@@ -1,80 +1,121 @@
 # Teacher Guide Generator
 
-Teacher Guide Generator is a FastAPI + React application that turns lesson PDFs into structured, editable teacher guides with Gemini, then opens them in a browser-based editor.
+Turn a lesson PDF into a structured, editable teacher guide in seconds.
 
-The app now includes a branded generator landing page, a browser-tab favicon, a back button in the editor, and a more dynamic custom-sections workflow with drag-and-drop reordering.
+Teacher Guide Generator is a **FastAPI + React** application that extracts text from an uploaded lesson PDF, sends it to **Google Gemini**, and returns a structured teacher guide. The guide opens in a browser-based editor where you can refine every section, add rich text and images, reorder content, and export to standalone HTML or PDF.
 
-## What The App Does
+---
 
-### Generator Page
+## Table of Contents
 
+- [Features](#features)
+- [How It Works](#how-it-works)
+- [Tech Stack](#tech-stack)
+- [Requirements](#requirements)
+- [Configuration](#configuration)
+- [Local Setup](#local-setup)
+- [Running the App](#running-the-app)
+- [Deployment](#deployment)
+- [API Reference](#api-reference)
+- [Project Structure](#project-structure)
+- [Notes & Behavior](#notes--behavior)
+
+---
+
+## Features
+
+### Generator page
 - Upload a `.pdf` by drag-and-drop or file picker.
-- Extract readable text from the PDF and send it to Gemini.
-- Show progress while the app uploads, extracts text, generates content, and finalizes the guide.
-- Show a success toast after generation and automatically open the editor.
-- Import an existing guide from an HTML file and load it into the editor.
-- Uses a branded iSchool header and a document-style favicon in the browser tab.
+- Extract readable text from the PDF and generate a guide with Gemini.
+- Live progress while the app uploads, extracts text, generates, and finalizes.
+- Success toast on completion, then auto-opens the editor.
+- Import an existing guide from an HTML file to keep editing it.
+- Friendly message when the Gemini daily quota is reached, plus automatic model fallback on transient errors.
+- Branded iSchool header and a document-style browser-tab favicon.
 
 ### Editor
+The guide is organized into nine structured sections, plus custom sections:
 
-- Edit the guide in 10 structured sections:
-  1. Lesson Info
-  2. Overview
-  3. Learning Outcomes
-  4. Preparation
-  5. Outline Overview
-  6. Lesson Procedure
-  7. Publishing Guide
-  8. Glossary
-  9. Bonus Activities
-- 10. Custom Sections
-- Collapse sections, preview read-only output, and autosave locally.
-- Use the Back button to return to the generator page.
-- Add custom sections with a selectable type, rename them, and reorder them with drag-and-drop.
-- Export the guide as standalone HTML.
-- Print the guide to PDF using the browser print flow.
+1. **Lesson Info** – name, grade level, module/slides links, production state
+2. **Overview** – rich-text session summary
+3. **Learning Outcomes**
+4. **Preparation**
+5. **Outline Overview** – table of sections, pedagogy, duration, slide numbers
+6. **Lesson Procedure** – typed activities (Recap, Explore, Make, Evaluate, Share, etc.) with rich-text instructions
+7. **Publishing Guide**
+8. **Glossary**
+9. **Bonus Activities**
+10. **Custom Sections** – add sections of any type, rename them, and reorder with drag-and-drop
 
-### Backend
+Editor capabilities:
+- Rich text editing (Tiptap) for overview and activity instructions.
+- Inline image upload with crop/resize, plus drag-to-reposition inside the editor.
+- Collapse/expand sections and a read-only preview mode.
+- Global undo button.
+- Autosave to browser local storage.
+- Back button to return to the generator.
+- Export as standalone HTML, or print/export to PDF.
 
-- `POST /upload` uploads a PDF and returns a guide payload plus a token.
-- `GET /guide/{token}` loads a generated guide once.
-- `GET /demo` returns a sample guide for testing.
-- `POST /export-pdf` converts HTML into a PDF.
+---
+
+## How It Works
+
+```
+PDF upload ──▶ pdfplumber (text extraction) ──▶ Gemini (structured guide)
+                                                      │
+                       browser local storage ◀── React editor ◀── one-time token
+                                                      │
+                                        HTML export / PDF export
+```
+
+1. The PDF is uploaded to `POST /upload` and stored temporarily.
+2. `pdfplumber` extracts the slide text (capped at 60k characters to stay within the serverless timeout).
+3. Gemini generates a structured guide, which is returned with a one-time retrieval token.
+4. The editor loads the guide and autosaves edits locally.
+5. Exports render either standalone HTML or a ReportLab-generated PDF.
+
+---
 
 ## Tech Stack
 
-- Backend: FastAPI, Uvicorn, Jinja2
-- AI: Google Gemini via `google-genai`
-- PDF text extraction: `pdfplumber`
-- PDF export: ReportLab
-- Editor: React, TypeScript, Vite, Tailwind, Radix UI, Tiptap
+| Layer | Technology |
+| --- | --- |
+| Backend | FastAPI, Uvicorn, Jinja2 |
+| AI | Google Gemini via `google-genai` |
+| PDF text extraction | `pdfplumber` |
+| PDF export | ReportLab |
+| Editor | React, TypeScript, Vite, Tailwind CSS, Radix UI, Tiptap, dnd-kit |
+| Hosting | Vercel serverless (or single FastAPI server) |
+
+---
 
 ## Requirements
 
 - Python 3.10+
 - Node.js 18+
-- Gemini API key from https://aistudio.google.com/apikey
+- A Gemini API key — get one free at <https://aistudio.google.com/apikey>
+
+---
 
 ## Configuration
 
-Create a `.env` file in the project root:
+Create a `.env` file in the project root (see `.env.example`):
 
 ```env
 GEMINI_API_KEY=your_key_here
-GEMINI_MODEL=gemini-2.5-flash
-GEMINI_MODEL_FALLBACKS=gemini-2.0-flash,gemini-1.5-flash,gemini-1.5-pro
+GEMINI_MODEL=gemini-2.5-flash-lite
+GEMINI_MODEL_FALLBACKS=gemini-2.5-flash-lite,gemini-2.5-flash,gemini-flash-lite-latest,gemini-3.5-flash
 UPLOAD_API_BASE_URL=
 ```
 
-Required:
+| Variable | Required | Default | Description |
+| --- | --- | --- | --- |
+| `GEMINI_API_KEY` | ✅ | — | Your Gemini API key. |
+| `GEMINI_MODEL` | | `gemini-2.5-flash-lite` | Primary generation model. |
+| `GEMINI_MODEL_FALLBACKS` | | see above | Comma-separated models tried on transient 503/429 errors. |
+| `UPLOAD_API_BASE_URL` | | *(blank)* | API base URL for the upload page. Leave blank for same-origin requests. |
 
-- `GEMINI_API_KEY`
-
-Optional:
-
-- `GEMINI_MODEL`
-- `GEMINI_MODEL_FALLBACKS`
-- `UPLOAD_API_BASE_URL` - Optional API base URL for the upload page. Leave blank for same-origin.
+---
 
 ## Local Setup
 
@@ -82,7 +123,8 @@ Install backend dependencies:
 
 ```bash
 python -m venv .venv
-.\.venv\Scripts\activate
+.\.venv\Scripts\activate        # Windows
+# source .venv/bin/activate     # macOS / Linux
 pip install -r requirements.txt
 ```
 
@@ -94,61 +136,56 @@ npm install
 cd ..
 ```
 
-## Run Locally
+---
 
-### Option 1: FastAPI only
+## Running the App
 
-Run the backend:
-
-```bash
-uvicorn src.app:app --reload
-```
-
-Open:
-
-- Generator: http://127.0.0.1:8000/
-- Editor shell: http://127.0.0.1:8000/editor
-
-### Option 2: Backend + Vite dev server
-
-Run the backend:
+### Option 1 — FastAPI only (uses the built editor bundle)
 
 ```bash
 uvicorn src.app:app --reload
 ```
 
-Run the editor in another terminal:
+- Generator: <http://127.0.0.1:8000/>
+- Editor shell: <http://127.0.0.1:8000/editor>
+
+> The `/editor` route needs a built bundle in `static/editor`. If it isn't built yet, run `npm run build` in `editor/` first (see Option 3).
+
+### Option 2 — Backend + Vite dev server (best for editor development)
+
+Terminal 1:
+
+```bash
+uvicorn src.app:app --reload
+```
+
+Terminal 2:
 
 ```bash
 cd editor
 npm run dev
 ```
 
-Then open the Vite editor URL, usually http://localhost:5173.
+Then open the Vite URL, usually <http://localhost:5173>.
 
-### Option 3: Build editor assets and run one server
-
-Build the editor first:
+### Option 3 — Build editor assets and run a single server
 
 ```bash
 cd editor
-npm run build
+npm run build      # outputs to static/editor
 cd ..
-```
-
-Then run the backend:
-
-```bash
 uvicorn src.app:app --reload
 ```
+
+---
 
 ## Deployment
 
 ### Vercel
 
 - `api/index.py` is the serverless entrypoint.
-- `vercel.json` routes requests to the FastAPI app.
-- Set `GEMINI_API_KEY` in Vercel project settings.
+- `vercel.json` routes all requests to the FastAPI app (60s max duration).
+- Set `GEMINI_API_KEY` in the Vercel project settings.
 - Rebuild the editor before deploying frontend changes:
 
 ```bash
@@ -157,47 +194,59 @@ npm run build
 cd ..
 ```
 
-### Local Hosting Mode
+### Self-hosting
 
-The backend serves the generator page and built editor bundle from the same FastAPI app when `static/editor` has been built.
+The backend serves both the generator page and the built editor bundle from the same FastAPI app once `static/editor` has been built. Run it behind any ASGI server (e.g. Uvicorn/Gunicorn).
 
-## API Endpoints
+---
 
-- `GET /` - Upload page.
-- `POST /upload` - Upload a PDF and generate a teacher guide.
-- `GET /guide/{token}` - Retrieve a generated guide once.
-- `GET /demo` - Sample guide payload for preview/testing.
-- `GET /editor` - Built editor shell.
-- `POST /export-pdf` - HTML to PDF export.
+## API Reference
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `GET` | `/` | Generator / upload page. |
+| `GET` | `/editor` | Built editor shell. |
+| `POST` | `/upload` | Upload a PDF; returns `{ token, file_name, guide }`. |
+| `GET` | `/guide/{token}` | Retrieve a generated guide once (consumed on read). |
+| `GET` | `/demo` | Sample guide payload for preview/testing. |
+| `POST` | `/export-pdf` | Convert `{ html, file_name }` into a downloadable PDF. |
+
+---
 
 ## Project Structure
 
 ```text
 .
-|- api/
-|  `- index.py                    # Vercel serverless entrypoint
-|- editor/                        # React + TypeScript editor source
-|  |- src/
-|  |- index.html
-|  |- package.json
-|  |- tsconfig.json
-|  `- vite.config.ts
-|- src/                           # FastAPI backend
-|  |- app.py                      # Routes and app wiring
-|  |- config.py                   # Environment and path config
-|  |- data/
-|  |- services/
-|  `- utils/
-|- static/                        # Upload page assets and built editor output
-|- templates/
-|  `- index.html                  # Upload page template
-|- requirements.txt
-`- vercel.json
+├─ api/
+│  └─ index.py                 # Vercel serverless entrypoint
+├─ editor/                     # React + TypeScript editor source
+│  ├─ src/
+│  │  ├─ components/           # UI components
+│  │  ├─ editor/               # Section editors
+│  │  ├─ services/             # API calls
+│  │  ├─ types.ts             # Shared guide domain models
+│  │  └─ App.tsx
+│  ├─ index.html
+│  ├─ package.json
+│  └─ vite.config.ts
+├─ src/                        # FastAPI backend
+│  ├─ app.py                   # Routes and app wiring
+│  ├─ config.py                # Environment and path config
+│  ├─ data/sample_guide.py     # Demo guide payload
+│  ├─ services/                # Gemini, guide, and PDF services
+│  └─ utils/pdf_text.py        # PDF text extraction
+├─ static/                     # Upload page assets + built editor output
+├─ templates/index.html        # Upload page template
+├─ requirements.txt
+└─ vercel.json
 ```
 
-## Notes
+---
 
-- The generator stores uploaded guides temporarily in memory by token.
-- The editor autosaves to browser local storage.
-- The editor normalizes older saved guides on load so custom sections stay safe across updates.
-- The app expects the Gemini API key to be configured in your environment.
+## Notes & Behavior
+
+- Generated guides are stored **temporarily in memory** by token and are consumed on first read.
+- The editor **autosaves to browser local storage**, so work survives a refresh.
+- Older saved guides are **normalized on load** so custom sections stay safe across app updates.
+- Very long PDFs are truncated to 60,000 characters of extracted text before generation.
+- On transient Gemini errors (503/429), the app retries and falls back through the configured model chain; when the daily quota is exhausted it shows a clear, user-friendly message.

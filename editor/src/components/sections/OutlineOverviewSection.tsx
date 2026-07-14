@@ -6,11 +6,9 @@ import type { OutlineRow } from '@/types'
 type Col = { key: keyof Omit<OutlineRow, 'id'>; label: string; placeholder: string; numeric?: boolean }
 
 const COLS: Col[] = [
-  { key: 'type',            label: 'Type',          placeholder: 'e.g. Main Activity' },
   { key: 'sectionName',     label: 'Section Name',  placeholder: 'e.g. Variables' },
   { key: 'pedagogy',        label: 'Pedagogy',      placeholder: 'e.g. Discussion' },
   { key: 'durationMinutes', label: 'Duration (min)', placeholder: '10', numeric: true },
-  { key: 'slideNumbers',    label: 'Slides',        placeholder: '1–5' },
 ]
 
 interface Props {
@@ -40,9 +38,8 @@ export function OutlineOverviewSection({ rows, onChange, readOnly = false }: Pro
               </tr>
             ))}
             <tr className="border-t">
-              <td colSpan={3} className="pt-2 text-right pr-4 text-xs text-muted-foreground">Total</td>
+              <td colSpan={2} className="pt-2 text-right pr-4 text-xs text-muted-foreground">Total</td>
               <td className="pt-2 pr-4 font-medium">{total} min</td>
-              <td />
             </tr>
           </tbody>
         </table>
@@ -84,9 +81,9 @@ export function OutlineOverviewSection({ rows, onChange, readOnly = false }: Pro
           </tbody>
           <tfoot>
             <tr>
-              <td colSpan={3} className="pt-2 pr-3 text-right text-xs text-muted-foreground">Total</td>
+              <td colSpan={2} className="pt-2 pr-3 text-right text-xs text-muted-foreground">Total</td>
               <td className="pt-2 pr-3 font-medium">{total} min</td>
-              <td colSpan={2} />
+              <td />
             </tr>
           </tfoot>
         </table>

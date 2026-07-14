@@ -3,9 +3,11 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import Placeholder from '@tiptap/extension-placeholder'
+import Link from '@tiptap/extension-link'
 import { ImageWithDelete } from '@/components/tiptap/ImageWithDelete'
 import {
   Bold,
+  ImageDown,
   ImagePlus,
   Italic,
   Link2,
@@ -43,6 +45,12 @@ export function RichTextEditor({
       Underline,
       Placeholder.configure({ placeholder }),
       ImageWithDelete.configure({ allowBase64: true }),
+      Link.configure({
+        openOnClick: false,
+        autolink: true,
+        defaultProtocol: 'https',
+        HTMLAttributes: { rel: 'noopener noreferrer nofollow', target: '_blank' },
+      }),
     ],
     content,
     editable: !readOnly,
@@ -58,6 +66,21 @@ export function RichTextEditor({
     const src = raw?.trim()
     if (!src) return
     editor.chain().focus().setImage({ src }).run()
+  }
+
+  // Turns the current selection into a link (or edits/removes an existing one).
+  const setLink = () => {
+    const previousUrl = editor.getAttributes('link').href as string | undefined
+    const input = window.prompt('Enter link URL', previousUrl ?? 'https://')
+    if (input === null) return // cancelled
+    const url = input.trim()
+    if (url === '') {
+      editor.chain().focus().extendMarkRange('link').unsetLink().run()
+      return
+    }
+    // Default to https:// when the user omits a scheme (but leave mailto/tel/anchors alone).
+    const href = /^(https?:|mailto:|tel:|\/|#)/i.test(url) ? url : `https://${url}`
+    editor.chain().focus().extendMarkRange('link').setLink({ href }).run()
   }
 
   const openImagePicker = () => {
@@ -115,12 +138,13 @@ export function RichTextEditor({
           {btn(editor.isActive('bold'), () => editor.chain().focus().toggleBold().run(), 'Bold', <Bold className="h-4 w-4" />)}
           {btn(editor.isActive('italic'), () => editor.chain().focus().toggleItalic().run(), 'Italic', <Italic className="h-4 w-4" />)}
           {btn(editor.isActive('underline'), () => editor.chain().focus().toggleUnderline().run(), 'Underline', <UnderlineIcon className="h-4 w-4" />)}
+          {btn(editor.isActive('link'), setLink, 'Insert link', <Link2 className="h-4 w-4" />)}
           <div className="h-8 w-px bg-border mx-1" />
           {btn(editor.isActive('bulletList'), () => editor.chain().focus().toggleBulletList().run(), 'Bullet list', <List className="h-4 w-4" />)}
           {btn(editor.isActive('orderedList'), () => editor.chain().focus().toggleOrderedList().run(), 'Ordered list', <ListOrdered className="h-4 w-4" />)}
           <div className="h-8 w-px bg-border mx-1" />
           {btn(false, openImagePicker, 'Upload image', <ImagePlus className="h-4 w-4" />)}
-          {btn(false, insertImageByUrl, 'Insert image by URL', <Link2 className="h-4 w-4" />)}
+          {btn(false, insertImageByUrl, 'Insert image by URL', <ImageDown className="h-4 w-4" />)}
           <div className="h-8 w-px bg-border mx-1" />
           <Button
             type="button"

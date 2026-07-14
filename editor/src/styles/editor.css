@@ -45,6 +45,12 @@
   margin: 0.5rem 0;
 }
 
+.tiptap-content .ProseMirror a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .tiptap-image-wrapper {
   position: relative;
   display: inline-block;

@@ -50,7 +50,6 @@ def dict_to_teacher_guide(
                 "activityType": act.get("activityType", "Explore"),
                 "activityTitle": act.get("activityTitle", ""),
                 "duration": int(act.get("duration", 10) or 10),
-                "slideNumbers": "",
                 "instructions": act.get("instructions", ""),
             }
         )
@@ -80,7 +79,6 @@ def dict_to_teacher_guide(
             "sectionName": act["activityTitle"],
             "pedagogy": act["activityType"],
             "durationMinutes": act["duration"],
-            "slideNumbers": act["slideNumbers"],
         }
         for act in lesson_procedure
     ]

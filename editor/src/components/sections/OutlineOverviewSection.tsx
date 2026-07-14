@@ -21,7 +21,7 @@ export function OutlineOverviewSection({ rows, onChange, readOnly = false }: Pro
   const update = <K extends keyof OutlineRow>(i: number, key: K, value: OutlineRow[K]) => {
     const n = [...rows]; n[i] = { ...n[i], [key]: value }; onChange(n)
   }
-  const add = () => onChange([...rows, { id: crypto.randomUUID(), type: '', sectionName: '', pedagogy: '', durationMinutes: 0, slideNumbers: '' }])
+  const add = () => onChange([...rows, { id: crypto.randomUUID(), type: '', sectionName: '', pedagogy: '', durationMinutes: 0 }])
   const remove = (i: number) => onChange(rows.filter((_, j) => j !== i))
 
   const total = rows.reduce((s, r) => s + (Number(r.durationMinutes) || 0), 0)

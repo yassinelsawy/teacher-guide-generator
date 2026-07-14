@@ -176,7 +176,6 @@ function normalizeGuide(raw) {
           sectionName: typeof row.sectionName === 'string' ? row.sectionName : '',
           pedagogy: typeof row.pedagogy === 'string' ? row.pedagogy : '',
           durationMinutes: Number.isFinite(row.durationMinutes) ? row.durationMinutes : 0,
-          slideNumbers: typeof row.slideNumbers === 'string' ? row.slideNumbers : '',
         }))
     : [];
 
@@ -188,7 +187,6 @@ function normalizeGuide(raw) {
           activityType: typeof act.activityType === 'string' ? act.activityType : 'Explore',
           activityTitle: typeof act.activityTitle === 'string' ? act.activityTitle : '',
           duration: Number.isFinite(act.duration) ? act.duration : 10,
-          slideNumbers: typeof act.slideNumbers === 'string' ? act.slideNumbers : '',
           instructions: typeof act.instructions === 'string' ? act.instructions : '',
         }))
     : [];
@@ -365,20 +363,17 @@ function parseActivityHeader(rawTitle) {
   const durMatch = text.match(/\b(\d+)\s*min\b/i);
   if (durMatch) duration = Number(durMatch[1]);
 
-  let slideNumbers = '';
-  const slideMatch = text.match(/Slides?:\s*([^·]+)/i);
-  if (slideMatch) slideNumbers = slideMatch[1].trim();
-
   const activityTitle = text
     .replace(ACTIVITY_TYPE_TOKEN, ' ')
     .replace(/\b\d+\s*min\b/gi, ' ')
+    // Strip any legacy "Slides: X" fragment left in older exported headings.
     .replace(/Slides?:\s*[^·]*/gi, ' ')
     .replace(/\s*·\s*/g, ' ')
     .replace(/\s{2,}/g, ' ')
     .replace(/^[\s·:–-]+|[\s·:–-]+$/g, '')
     .trim();
 
-  return { activityTitle, activityType, duration, slideNumbers };
+  return { activityTitle, activityType, duration };
 }
 
 function parseLessonProcedure(nodes) {
@@ -396,7 +391,6 @@ function parseLessonProcedure(nodes) {
       activityType: parsed.activityType || getActivityType(parsed.activityTitle),
       activityTitle: parsed.activityTitle || 'Learn',
       duration: parsed.duration || 10,
-      slideNumbers: parsed.slideNumbers,
       instructions,
     });
   };
@@ -440,7 +434,6 @@ function parseInteractiveActivities(body) {
     const type = getText(node.querySelector('.pill'));
     const title = getText(node.querySelector('.act-title'));
     const durMatch = getText(node.querySelector('.badge-sec')).match(/(\d+)/);
-    const slideNumbers = getText(node.querySelector('.badge-out')).replace(/^\s*slides?\s*/i, '').trim();
     const bodyEl = node.querySelector('.activity-body');
     let instructions = bodyEl ? bodyEl.innerHTML.trim() : '';
     // Drop the "No instructions." placeholder the export inserts for empty activities.
@@ -451,7 +444,6 @@ function parseInteractiveActivities(body) {
       activityType: ACTIVITY_TYPES.includes(type) ? type : getActivityType(title),
       activityTitle: title || 'Learn',
       duration: durMatch ? Number(durMatch[1]) : 10,
-      slideNumbers,
       instructions,
     });
   });
@@ -473,7 +465,6 @@ function parseInteractiveOutline(body) {
       sectionName,
       pedagogy,
       durationMinutes: durMatch ? Number(durMatch[1]) : 0,
-      slideNumbers: '',
     });
   });
   return rows;

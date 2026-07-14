@@ -49,7 +49,7 @@ export function LessonProcedureSection({ activities, onChange, readOnly = false 
   const remove = (i: number) => onChange(activities.filter((_, j) => j !== i))
   const add = () => onChange([
     ...activities,
-    { id: crypto.randomUUID(), activityType: 'Explore', activityTitle: '', duration: 10, slideNumbers: '', instructions: '' },
+    { id: crypto.randomUUID(), activityType: 'Explore', activityTitle: '', duration: 10, instructions: '' },
   ])
 
   const total = activities.reduce((s, a) => s + (Number(a.duration) || 0), 0)

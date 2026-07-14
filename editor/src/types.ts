@@ -34,7 +34,6 @@ export interface OutlineRow {
   sectionName: string
   pedagogy: string
   durationMinutes: number
-  slideNumbers: string
 }
 
 export interface Activity {
@@ -42,7 +41,6 @@ export interface Activity {
   activityType: string
   activityTitle: string
   duration: number
-  slideNumbers: string
   instructions: string  // HTML from Tiptap
 }
 
@@ -149,7 +147,6 @@ export function createDefaultGuide(): TeacherGuide {
         sectionName: '',
         pedagogy: '',
         durationMinutes: 0,
-        slideNumbers: '',
       },
     ],
     lessonProcedure: [
@@ -158,7 +155,6 @@ export function createDefaultGuide(): TeacherGuide {
         activityType: 'Explore',
         activityTitle: '',
         duration: 10,
-        slideNumbers: '',
         instructions: '',
       },
     ],
@@ -218,7 +214,7 @@ export function guideToHTML(guide: TeacherGuide): string {
   if (guide.outlineOverview.length) {
     parts.push(tag('h2', 'Lesson Outline'))
     const rows = guide.outlineOverview
-      .map(r => `<li><strong>${r.sectionName}</strong>${r.pedagogy ? ` – ${r.pedagogy}` : ''}${r.durationMinutes ? ` (${r.durationMinutes} min)` : ''}${r.slideNumbers ? ` · Slides: ${r.slideNumbers}` : ''}</li>`)
+      .map(r => `<li><strong>${r.sectionName}</strong>${r.pedagogy ? ` – ${r.pedagogy}` : ''}${r.durationMinutes ? ` (${r.durationMinutes} min)` : ''}</li>`)
       .join('')
     parts.push(`<ul>${rows}</ul>`)
   }
@@ -230,7 +226,6 @@ export function guideToHTML(guide: TeacherGuide): string {
         act.activityTitle,
         `[${act.activityType}]`,
         act.duration ? `${act.duration} min` : '',
-        act.slideNumbers ? `Slides: ${act.slideNumbers}` : '',
       ].filter(Boolean).join(' · ')
       parts.push(tag('h3', header))
       if (act.instructions) parts.push(act.instructions)
@@ -281,7 +276,7 @@ export function guideToHTML(guide: TeacherGuide): string {
         case 'outlineOverview': {
           if (section.outlineOverview.length) {
             const rows = section.outlineOverview
-              .map((row) => `<li><strong>${row.sectionName}</strong>${row.pedagogy ? ` – ${row.pedagogy}` : ''}${row.durationMinutes ? ` (${row.durationMinutes} min)` : ''}${row.slideNumbers ? ` · Slides: ${row.slideNumbers}` : ''}</li>`)
+              .map((row) => `<li><strong>${row.sectionName}</strong>${row.pedagogy ? ` – ${row.pedagogy}` : ''}${row.durationMinutes ? ` (${row.durationMinutes} min)` : ''}</li>`)
               .join('')
             parts.push(`<ul>${rows}</ul>`)
           }
@@ -293,7 +288,6 @@ export function guideToHTML(guide: TeacherGuide): string {
               act.activityTitle,
               `[${act.activityType}]`,
               act.duration ? `${act.duration} min` : '',
-              act.slideNumbers ? `Slides: ${act.slideNumbers}` : '',
             ].filter(Boolean).join(' · ')
             parts.push(tag('h3', header))
             if (act.instructions) parts.push(act.instructions)

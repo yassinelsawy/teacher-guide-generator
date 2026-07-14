@@ -45,7 +45,6 @@ export function normalizeGuide(input: unknown): TeacherGuide | null {
             typeof row.durationMinutes === 'number' && Number.isFinite(row.durationMinutes)
               ? row.durationMinutes
               : 0,
-          slideNumbers: typeof row.slideNumbers === 'string' ? row.slideNumbers : '',
         }))
     : []
 
@@ -57,7 +56,6 @@ export function normalizeGuide(input: unknown): TeacherGuide | null {
           activityType: typeof act.activityType === 'string' ? act.activityType : 'Explore',
           activityTitle: typeof act.activityTitle === 'string' ? cleanActivityTitle(act.activityTitle) : '',
           duration: typeof act.duration === 'number' && Number.isFinite(act.duration) ? act.duration : 10,
-          slideNumbers: typeof act.slideNumbers === 'string' ? act.slideNumbers : '',
           instructions: typeof act.instructions === 'string' ? act.instructions : '',
         }))
     : []
@@ -105,7 +103,6 @@ export function normalizeGuide(input: unknown): TeacherGuide | null {
                   sectionName: typeof row.sectionName === 'string' ? row.sectionName : '',
                   pedagogy: typeof row.pedagogy === 'string' ? row.pedagogy : '',
                   durationMinutes: typeof row.durationMinutes === 'number' && Number.isFinite(row.durationMinutes) ? row.durationMinutes : 0,
-                  slideNumbers: typeof row.slideNumbers === 'string' ? row.slideNumbers : '',
                 }))
               : normalized.outlineOverview,
             lessonProcedure: Array.isArray(section.lessonProcedure)
@@ -114,7 +111,6 @@ export function normalizeGuide(input: unknown): TeacherGuide | null {
                   activityType: typeof act.activityType === 'string' ? act.activityType : 'Explore',
                   activityTitle: typeof act.activityTitle === 'string' ? cleanActivityTitle(act.activityTitle) : '',
                   duration: typeof act.duration === 'number' && Number.isFinite(act.duration) ? act.duration : 10,
-                  slideNumbers: typeof act.slideNumbers === 'string' ? act.slideNumbers : '',
                   instructions: typeof act.instructions === 'string' ? act.instructions : '',
                 }))
               : normalized.lessonProcedure,

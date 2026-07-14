@@ -33,7 +33,6 @@ SAMPLE_GUIDE: dict = {
             "activityType": "Recap",
             "activityTitle": "Initiate",
             "duration": 10,
-            "slideNumbers": "",
             "instructions": (
                 "<p>1. Quick poll: ask students to raise their hand if they used AI today.</p>"
                 "<p>2. Show a 60-second clip of AI in action (voice assistant, self-driving car).</p>"
@@ -45,7 +44,6 @@ SAMPLE_GUIDE: dict = {
             "activityType": "Explore",
             "activityTitle": "Learn",
             "duration": 15,
-            "slideNumbers": "",
             "instructions": (
                 "<p>1. Display Slide 3: Definition. Ask a student to rephrase it.</p>"
                 "<p>2. Analogy: <em>Teaching an AI is like teaching a child through examples.</em></p>"
@@ -57,7 +55,6 @@ SAMPLE_GUIDE: dict = {
             "activityType": "Make",
             "activityTitle": "Make",
             "duration": 20,
-            "slideNumbers": "",
             "instructions": (
                 "<p>1. Distribute the AI Problem Solver worksheet.</p>"
                 "<p>2. Students choose a real problem and draw a 4-step flowchart.</p>"
@@ -69,7 +66,6 @@ SAMPLE_GUIDE: dict = {
             "activityType": "Share",
             "activityTitle": "Share",
             "duration": 10,
-            "slideNumbers": "",
             "instructions": (
                 "<p>1. Ask 2–3 volunteers to share their flowcharts.</p>"
                 "<p>2. Prompt: <strong>Does this AI need a lot of data or a little?</strong></p>"

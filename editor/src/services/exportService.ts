@@ -139,7 +139,6 @@ function activityHTML(activities: Activity[]): string {
       const pillStyle = ACTIVITY_PILL[act.activityType] ?? 'background:#f3f4f6;color:#374151;border-color:#e5e7eb'
       const metas = [
         act.duration ? `<span class="badge-sec">${esc(act.duration)} min</span>` : '',
-        act.slideNumbers ? `<span class="badge-out">Slides ${esc(act.slideNumbers)}</span>` : '',
       ].join('')
       return `<details class="activity" open>
   <summary class="activity-summary"><span class="chevron"></span><span class="act-index">${i + 1}</span><span class="pill" style="${pillStyle}">${esc(

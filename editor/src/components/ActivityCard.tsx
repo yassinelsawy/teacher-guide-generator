@@ -79,7 +79,6 @@ export function ActivityCard({
         </span>
 
         {activity.duration > 0 && <Badge variant="secondary" className="shrink-0 text-xs">{activity.duration} min</Badge>}
-        {activity.slideNumbers && <Badge variant="outline" className="shrink-0 text-xs">Slides {activity.slideNumbers}</Badge>}
 
         <button
           onClick={() => setCollapsed(c => !c)}
@@ -104,7 +103,6 @@ export function ActivityCard({
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div><p className="text-xs uppercase font-medium text-muted-foreground mb-0.5">Type</p>{activity.activityType}</div>
                 <div><p className="text-xs uppercase font-medium text-muted-foreground mb-0.5">Duration</p>{activity.duration} min</div>
-                <div><p className="text-xs uppercase font-medium text-muted-foreground mb-0.5">Slides</p>{activity.slideNumbers || '—'}</div>
               </div>
               {activity.instructions && (
                 <div>
@@ -115,7 +113,7 @@ export function ActivityCard({
             </>
           ) : (
             <>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <div className="space-y-1.5">
                   <Label>Activity Type</Label>
                   <Select value={activity.activityType} onValueChange={v => set('activityType', v)}>
@@ -130,10 +128,6 @@ export function ActivityCard({
                 <div className="space-y-1.5">
                   <Label>Duration (min)</Label>
                   <Input type="number" min={0} value={activity.duration} onChange={e => set('duration', Number(e.target.value))} className="h-9" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Slide Numbers</Label>
-                  <Input value={activity.slideNumbers} onChange={e => set('slideNumbers', e.target.value)} placeholder="e.g. 5–8" className="h-9" />
                 </div>
               </div>
 

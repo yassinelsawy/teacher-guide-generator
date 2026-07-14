@@ -77,7 +77,6 @@ SAMPLE_GUIDE: dict = {
             ),
         },
     ],
-    "publishingGuide": [""],
     "glossary": [
         {"id": "demo-g1", "concept": "Artificial Intelligence (AI)", "definition": "A computer system that performs tasks normally requiring human intelligence."},
         {"id": "demo-g2", "concept": "Machine Learning", "definition": "AI that learns from data examples instead of fixed rules."},

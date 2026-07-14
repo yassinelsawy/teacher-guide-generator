@@ -58,7 +58,6 @@ def dict_to_teacher_guide(data: dict, file_name: str) -> dict:
         "preparation": prep or [""],
         "outlineOverview": outline_overview,
         "lessonProcedure": lesson_procedure,
-        "publishingGuide": [""],
         "glossary": glossary,
         "bonusActivities": bonus,
     }
@@ -99,11 +98,6 @@ def teacher_guide_to_html(guide: dict) -> str:
             parts.append(f"<h3>{header}</h3>")
             if act.get("instructions"):
                 parts.append(act["instructions"])
-
-    pub = [s for s in guide.get("publishingGuide", []) if s]
-    if pub:
-        parts.append("<h2>Publishing Guide</h2>")
-        parts.append("<ol>" + "".join(f"<li>{s}</li>" for s in pub) + "</ol>")
 
     glossary = guide.get("glossary", [])
     if glossary:

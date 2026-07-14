@@ -173,7 +173,6 @@ function customSectionHTML(section: CustomSection): string {
     case 'preparation':     body = listHTML(section.preparation); break
     case 'outlineOverview': body = outlineTableHTML(section.outlineOverview); break
     case 'lessonProcedure': body = activityHTML(section.lessonProcedure); break
-    case 'publishingGuide': body = listHTML(section.publishingGuide, true); break
     case 'glossary':
       body = section.glossary.filter((g) => g.concept || g.definition).length
         ? `<dl class="glossary">${section.glossary
@@ -198,10 +197,9 @@ function guideToInteractiveHTML(guide: TeacherGuide): string {
   sections.push(card('4. Preparation', listHTML(guide.preparation), guide.preparation.filter(Boolean).length))
   sections.push(card('5. Outline Overview', outlineTableHTML(guide.outlineOverview), guide.outlineOverview.length))
   sections.push(card('6. Lesson Procedure', activityHTML(guide.lessonProcedure), guide.lessonProcedure.length))
-  sections.push(card('7. Publishing Guide', listHTML(guide.publishingGuide, true), guide.publishingGuide.filter(Boolean).length))
   sections.push(
     card(
-      '8. Glossary',
+      '7. Glossary',
       guide.glossary.filter((g) => g.concept || g.definition).length
         ? `<dl class="glossary">${guide.glossary
             .filter((g) => g.concept || g.definition)
@@ -211,7 +209,7 @@ function guideToInteractiveHTML(guide: TeacherGuide): string {
       guide.glossary.length,
     ),
   )
-  sections.push(card('9. Bonus Activities', listHTML(guide.bonusActivities), guide.bonusActivities.filter(Boolean).length || undefined))
+  sections.push(card('8. Bonus Activities', listHTML(guide.bonusActivities), guide.bonusActivities.filter(Boolean).length || undefined))
 
   ;(guide.customSections || []).forEach((section) => sections.push(customSectionHTML(section)))
 

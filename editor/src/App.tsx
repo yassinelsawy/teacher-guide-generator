@@ -8,7 +8,6 @@ import { LearningOutcomesSection } from '@/components/sections/LearningOutcomesS
 import { PreparationSection }      from '@/components/sections/PreparationSection'
 import { OutlineOverviewSection }  from '@/components/sections/OutlineOverviewSection'
 import { LessonProcedureSection }  from '@/components/sections/LessonProcedureSection'
-import { PublishingGuideSection }  from '@/components/sections/PublishingGuideSection'
 import { GlossarySection }         from '@/components/sections/GlossarySection'
 import { BonusActivitiesSection }  from '@/components/sections/BonusActivitiesSection'
 import { CustomSectionsSection }   from '@/components/sections/CustomSectionsSection'
@@ -195,15 +194,11 @@ export default function App() {
           <LessonProcedureSection activities={guide.lessonProcedure} onChange={v => set('lessonProcedure', v)} readOnly={preview} />
         </CollapsibleSection>
 
-        <CollapsibleSection title="7. Publishing Guide" badge={guide.publishingGuide.filter(Boolean).length} forceOpen={printMode}>
-          <PublishingGuideSection steps={guide.publishingGuide} onChange={v => set('publishingGuide', v)} readOnly={preview} />
-        </CollapsibleSection>
-
-        <CollapsibleSection title="8. Glossary" badge={guide.glossary.length} forceOpen={printMode}>
+        <CollapsibleSection title="7. Glossary" badge={guide.glossary.length} forceOpen={printMode}>
           <GlossarySection entries={guide.glossary} onChange={v => set('glossary', v)} readOnly={preview} />
         </CollapsibleSection>
 
-        <CollapsibleSection title="9. Bonus Activities" defaultOpen={false} badge={guide.bonusActivities.filter(Boolean).length || undefined} forceOpen={printMode}>
+        <CollapsibleSection title="8. Bonus Activities" defaultOpen={false} badge={guide.bonusActivities.filter(Boolean).length || undefined} forceOpen={printMode}>
           <BonusActivitiesSection items={guide.bonusActivities} onChange={v => set('bonusActivities', v)} readOnly={preview} />
         </CollapsibleSection>
 

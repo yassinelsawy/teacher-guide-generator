@@ -118,7 +118,6 @@ export function normalizeGuide(input: unknown): TeacherGuide | null {
                   instructions: typeof act.instructions === 'string' ? act.instructions : '',
                 }))
               : normalized.lessonProcedure,
-            publishingGuide: Array.isArray(section.publishingGuide) ? section.publishingGuide.filter((value): value is string => typeof value === 'string') : normalized.publishingGuide,
             glossary: Array.isArray(section.glossary)
               ? section.glossary.filter(isRecord).map((entry) => ({
                   id: typeof entry.id === 'string' ? entry.id : crypto.randomUUID(),
@@ -139,7 +138,6 @@ export function normalizeGuide(input: unknown): TeacherGuide | null {
     preparation: asStringArray(input.preparation),
     outlineOverview,
     lessonProcedure,
-    publishingGuide: asStringArray(input.publishingGuide),
     glossary,
     bonusActivities: asStringArray(input.bonusActivities),
     customSections,

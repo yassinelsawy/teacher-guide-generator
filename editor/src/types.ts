@@ -59,7 +59,6 @@ export const CUSTOM_SECTION_TYPES = [
   { value: 'preparation', label: 'Preparation' },
   { value: 'outlineOverview', label: 'Outline Overview' },
   { value: 'lessonProcedure', label: 'Lesson Procedure' },
-  { value: 'publishingGuide', label: 'Publishing Guide' },
   { value: 'glossary', label: 'Glossary' },
   { value: 'bonusActivities', label: 'Bonus Activities' },
   { value: 'text', label: 'Text Block' },
@@ -74,7 +73,6 @@ export const CUSTOM_SECTION_TYPE_LABELS: Record<CustomSectionType, string> = {
   preparation: 'Preparation',
   outlineOverview: 'Outline Overview',
   lessonProcedure: 'Lesson Procedure',
-  publishingGuide: 'Publishing Guide',
   glossary: 'Glossary',
   bonusActivities: 'Bonus Activities',
   text: 'Text Block',
@@ -90,7 +88,6 @@ export interface CustomSection {
   preparation: string[]
   outlineOverview: OutlineRow[]
   lessonProcedure: Activity[]
-  publishingGuide: string[]
   glossary: GlossaryEntry[]
   bonusActivities: string[]
   text: string
@@ -103,7 +100,6 @@ export interface TeacherGuide {
   preparation: string[]
   outlineOverview: OutlineRow[]
   lessonProcedure: Activity[]
-  publishingGuide: string[]
   glossary: GlossaryEntry[]
   bonusActivities: string[]
   customSections: CustomSection[]
@@ -128,7 +124,6 @@ export function createCustomSection(sectionType: CustomSectionType = 'text'): Cu
     preparation: [''],
     outlineOverview: [],
     lessonProcedure: [],
-    publishingGuide: [''],
     glossary: [{ id: crypto.randomUUID(), concept: '', definition: '' }],
     bonusActivities: [''],
     text: '',
@@ -167,7 +162,6 @@ export function createDefaultGuide(): TeacherGuide {
         instructions: '',
       },
     ],
-    publishingGuide: [''],
     glossary: [{ id: crypto.randomUUID(), concept: '', definition: '' }],
     bonusActivities: [],
     customSections: [],
@@ -184,7 +178,6 @@ export function guideToExportJSON(guide: TeacherGuide) {
     preparation: guide.preparation.filter(Boolean),
     outlineOverview: guide.outlineOverview.map(({ id: _id, ...rest }) => rest),
     lessonProcedure: guide.lessonProcedure.map(({ id: _id, ...rest }) => rest),
-    publishingGuide: guide.publishingGuide.filter(Boolean),
     glossary: guide.glossary.map(({ id: _id, ...rest }) => rest),
     bonusActivities: guide.bonusActivities.filter(Boolean),
     customSections: guide.customSections.map(({ id: _id, ...rest }) => rest),
@@ -242,12 +235,6 @@ export function guideToHTML(guide: TeacherGuide): string {
       parts.push(tag('h3', header))
       if (act.instructions) parts.push(act.instructions)
     })
-  }
-
-  const pub = guide.publishingGuide.filter(Boolean)
-  if (pub.length) {
-    parts.push(tag('h2', 'Publishing Guide'))
-    parts.push(`<ol>${pub.map(s => tag('li', s)).join('')}</ol>`)
   }
 
   if (guide.glossary.length) {
@@ -311,11 +298,6 @@ export function guideToHTML(guide: TeacherGuide): string {
             parts.push(tag('h3', header))
             if (act.instructions) parts.push(act.instructions)
           })
-          break
-        }
-        case 'publishingGuide': {
-          const steps = section.publishingGuide.filter(Boolean)
-          if (steps.length) parts.push(`<ol>${steps.map((step) => tag('li', step)).join('')}</ol>`)
           break
         }
         case 'glossary': {

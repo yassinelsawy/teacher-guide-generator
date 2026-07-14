@@ -40,12 +40,11 @@ The guide is organized into nine structured sections, plus custom sections:
 2. **Overview** – rich-text session summary
 3. **Learning Outcomes**
 4. **Preparation**
-5. **Outline Overview** – table of sections, pedagogy, duration, slide numbers
+5. **Outline Overview** – table of sections, pedagogy, and duration
 6. **Lesson Procedure** – typed activities (Recap, Explore, Make, Evaluate, Share, etc.) with rich-text instructions
-7. **Publishing Guide**
-8. **Glossary**
-9. **Bonus Activities**
-10. **Custom Sections** – add sections of any type, rename them, and reorder with drag-and-drop
+7. **Glossary**
+8. **Bonus Activities**
+9. **Custom Sections** – add sections of any type, rename them, and reorder with drag-and-drop
 
 Editor capabilities:
 - Rich text editing (Tiptap) for overview and activity instructions.

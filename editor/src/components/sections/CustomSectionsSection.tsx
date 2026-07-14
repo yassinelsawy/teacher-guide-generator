@@ -31,7 +31,6 @@ import { LearningOutcomesSection } from '@/components/sections/LearningOutcomesS
 import { PreparationSection } from '@/components/sections/PreparationSection'
 import { OutlineOverviewSection } from '@/components/sections/OutlineOverviewSection'
 import { LessonProcedureSection } from '@/components/sections/LessonProcedureSection'
-import { PublishingGuideSection } from '@/components/sections/PublishingGuideSection'
 import { GlossarySection } from '@/components/sections/GlossarySection'
 import { BonusActivitiesSection } from '@/components/sections/BonusActivitiesSection'
 import { cn } from '@/lib/utils'
@@ -74,8 +73,6 @@ function isSectionEmpty(section: CustomSection): boolean {
       return section.outlineOverview.length === 0
     case 'lessonProcedure':
       return section.lessonProcedure.length === 0
-    case 'publishingGuide':
-      return section.publishingGuide.every((item) => !item.trim())
     case 'glossary':
       return section.glossary.every((entry) => !entry.concept.trim() && !entry.definition.trim())
     case 'bonusActivities':
@@ -108,8 +105,6 @@ function SectionBody({
       return <OutlineOverviewSection rows={section.outlineOverview} onChange={(outlineOverview) => onChange({ ...section, outlineOverview })} readOnly={readOnly} />
     case 'lessonProcedure':
       return <LessonProcedureSection activities={section.lessonProcedure} onChange={(lessonProcedure) => onChange({ ...section, lessonProcedure })} readOnly={readOnly} />
-    case 'publishingGuide':
-      return <PublishingGuideSection steps={section.publishingGuide} onChange={(publishingGuide) => onChange({ ...section, publishingGuide })} readOnly={readOnly} />
     case 'glossary':
       return <GlossarySection entries={section.glossary} onChange={(glossary) => onChange({ ...section, glossary })} readOnly={readOnly} />
     case 'bonusActivities':
@@ -391,7 +386,7 @@ export function CustomSectionsSection({ sections, onChange, readOnly = false, fo
 
   return (
     <CollapsibleSection
-      title="10. Custom Sections"
+      title="9. Custom Sections"
       badge={sections.length}
       forceOpen={forceOpen}
       headerContent={headerContent}

@@ -54,6 +54,12 @@ IMPORTANT RULES:
       "activityType": "Explore",
       "duration": 15,
       "instructions": "<p>...</p>"
+    }},
+    {{
+      "activityTitle": "Build the Project",
+      "activityType": "Make",
+      "duration": 20,
+      "instructions": "<ol><li>First step the instructor walks students through.</li><li>Second step.</li><li>Third step.</li></ol>"
     }}
   ],
   "glossary": [
@@ -71,6 +77,7 @@ ACTIVITY TYPE RULES:
 - Use ONLY these exact activityType values: "Recap", "Task Review", "Explore", "Make", "Evaluate", "Share", "Task at Home"
 - Map lesson phases: Initiate → "Recap", Learn/Explore → "Explore", Make/Create → "Make", Share/Present → "Share", Review → "Task Review", Evaluate → "Evaluate"
 - Include 3–6 activities. Estimate duration in minutes (default 10).
+- For every "Make" activity, write the "instructions" as an ordered list (<ol> with <li> items) of clear, sequential project steps the instructor can follow — one concrete action per step, in the order they should be performed. Do NOT write Make instructions as a single prose paragraph.
 
 HTML RULES (for "overview" and "instructions" fields ONLY):
 - Use only: <p>, <ul>, <ol>, <li>, <strong>, <em>, <br>

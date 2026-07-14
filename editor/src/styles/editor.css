@@ -51,6 +51,13 @@
   cursor: pointer;
 }
 
+/* Read-only / preview rendering shows guide HTML inside a `.prose` container.
+   No typography plugin is configured, so style links explicitly here. */
+.prose a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+}
+
 .tiptap-image-wrapper {
   position: relative;
   display: inline-block;

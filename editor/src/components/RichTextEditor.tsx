@@ -46,7 +46,7 @@ export function RichTextEditor({
       Placeholder.configure({ placeholder }),
       ImageWithDelete.configure({ allowBase64: true }),
       Link.configure({
-        openOnClick: false,
+        openOnClick: true,
         autolink: true,
         defaultProtocol: 'https',
         HTMLAttributes: { rel: 'noopener noreferrer nofollow', target: '_blank' },

@@ -177,7 +177,6 @@ function normalizeGuide(raw) {
     preparation: toStringArray(raw.preparation),
     outlineOverview,
     lessonProcedure,
-    publishingGuide: toStringArray(raw.publishingGuide),
     glossary,
     bonusActivities: toStringArray(raw.bonusActivities),
   };
@@ -387,6 +386,138 @@ function parseLessonProcedure(nodes) {
   return activities;
 }
 
+// ── Import: interactive (collapsible) export format ──────────────────
+// The interactive HTML export renders each section as <details class="card">
+// with a <span class="card-title"> label (and activities as <details
+// class="activity">) instead of <h2>/<h3> headings, so it needs its own parser.
+// Strips the leading "N. " numbering from a card title before matching.
+function cardKey(title) {
+  return normalizeHeading(String(title || '').replace(/^\s*\d+\.\s*/, ''));
+}
+
+function parseInteractiveActivities(body) {
+  const activities = [];
+  body.querySelectorAll('details.activity').forEach((node) => {
+    const type = getText(node.querySelector('.pill'));
+    const title = getText(node.querySelector('.act-title'));
+    const durMatch = getText(node.querySelector('.badge-sec')).match(/(\d+)/);
+    const slideNumbers = getText(node.querySelector('.badge-out')).replace(/^\s*slides?\s*/i, '').trim();
+    const bodyEl = node.querySelector('.activity-body');
+    let instructions = bodyEl ? bodyEl.innerHTML.trim() : '';
+    // Drop the "No instructions." placeholder the export inserts for empty activities.
+    if (bodyEl && /^\s*no instructions\.?\s*$/i.test(getText(bodyEl))) instructions = '';
+    if (!title && !instructions && !type) return;
+    activities.push({
+      id: crypto.randomUUID(),
+      activityType: ACTIVITY_TYPES.includes(type) ? type : getActivityType(title),
+      activityTitle: title || 'Learn',
+      duration: durMatch ? Number(durMatch[1]) : 10,
+      slideNumbers,
+      instructions,
+    });
+  });
+  return activities;
+}
+
+function parseInteractiveOutline(body) {
+  const rows = [];
+  body.querySelectorAll('table.outline tbody tr').forEach((tr) => {
+    const cells = Array.from(tr.querySelectorAll('td')).map((td) => getText(td));
+    if (cells.length < 3) return;
+    const sectionName = cells[0] === '—' ? '' : cells[0];
+    const pedagogy = cells[1] === '—' ? '' : cells[1];
+    const durMatch = cells[2].match(/(\d+)/);
+    if (!sectionName && !pedagogy && !durMatch) return;
+    rows.push({
+      id: crypto.randomUUID(),
+      type: '',
+      sectionName,
+      pedagogy,
+      durationMinutes: durMatch ? Number(durMatch[1]) : 0,
+      slideNumbers: '',
+    });
+  });
+  return rows;
+}
+
+// Reads <dt>/<dd> pairs from the first <dl> matching selector inside body.
+function parseInteractiveDefList(body, selector) {
+  const dl = body.querySelector(selector);
+  const pairs = [];
+  if (!dl) return pairs;
+  const children = Array.from(dl.children);
+  for (let i = 0; i < children.length; i++) {
+    if (children[i].tagName?.toLowerCase() !== 'dt') continue;
+    const next = children[i + 1];
+    pairs.push({
+      term: getText(children[i]),
+      def: next && next.tagName?.toLowerCase() === 'dd' ? getText(next) : '',
+    });
+  }
+  return pairs;
+}
+
+function parseInteractiveGuide(doc, lessonTitle) {
+  const cards = Array.from(doc.querySelectorAll('details.card'));
+  if (cards.length === 0) return null;
+
+  const guide = {
+    lessonInfo: { lessonName: lessonTitle, gradeLevel: '', moduleLink: '', slidesLink: '', productionState: 'Draft' },
+    overview: '',
+    learningOutcomes: [''],
+    preparation: [''],
+    outlineOverview: [],
+    lessonProcedure: [],
+    glossary: [],
+    bonusActivities: [],
+  };
+
+  let matched = false;
+
+  cards.forEach((card) => {
+    const key = cardKey(getText(card.querySelector('.card-title')));
+    const body = card.querySelector('.card-body');
+    if (!body) return;
+
+    if (key === 'lesson info') {
+      parseInteractiveDefList(body, 'dl.info').forEach(({ term, def }) => {
+        const t = normalizeHeading(term);
+        if (t === 'grade') guide.lessonInfo.gradeLevel = def;
+        else if (t === 'status') guide.lessonInfo.productionState = def || 'Draft';
+        else if (t === 'module') guide.lessonInfo.moduleLink = def;
+        else if (t === 'slides') guide.lessonInfo.slidesLink = def;
+        else if (t === 'lesson' && !guide.lessonInfo.lessonName) guide.lessonInfo.lessonName = def;
+      });
+      matched = true;
+    } else if (key.startsWith('overview')) {
+      guide.overview = body.innerHTML.trim();
+      matched = true;
+    } else if (key === 'learning outcomes') {
+      guide.learningOutcomes = extractListItems([body]);
+      matched = true;
+    } else if (key === 'preparation') {
+      guide.preparation = extractListItems([body]);
+      matched = true;
+    } else if (key === 'outline overview') {
+      guide.outlineOverview = parseInteractiveOutline(body);
+      matched = true;
+    } else if (key === 'lesson procedure') {
+      guide.lessonProcedure = parseInteractiveActivities(body);
+      matched = true;
+    } else if (key === 'glossary') {
+      guide.glossary = parseInteractiveDefList(body, 'dl.glossary')
+        .map(({ term, def }) => ({ id: crypto.randomUUID(), concept: term, definition: def }))
+        .filter((e) => e.concept || e.definition);
+      matched = true;
+    } else if (key === 'bonus activities') {
+      guide.bonusActivities = extractListItems([body]);
+      matched = true;
+    }
+  });
+
+  return matched ? guide : null;
+}
+
 function parseGuideFromHTML(htmlString) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(htmlString, 'text/html');
@@ -400,6 +531,13 @@ function parseGuideFromHTML(htmlString) {
   const lessonTitle = getText(lessonTitleNode);
   if (!lessonTitle) {
     return null;
+  }
+
+  // New interactive (collapsible) export uses <details class="card"> instead of
+  // <h2>/<h3> headings — parse that first, falling back to the legacy flat format.
+  if (doc.querySelector('details.card')) {
+    const interactive = parseInteractiveGuide(doc, lessonTitle);
+    if (interactive) return interactive;
   }
 
   const sections = getSectionsByH2(doc);
@@ -435,7 +573,6 @@ function parseGuideFromHTML(htmlString) {
     preparation: [''],
     outlineOverview: [],
     lessonProcedure: [],
-    publishingGuide: [''],
     glossary: [],
     bonusActivities: [],
   };

@@ -6,7 +6,7 @@ import shutil
 import uuid
 from pathlib import Path
 
-from fastapi import FastAPI, File, Request, UploadFile
+from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -96,9 +96,12 @@ async def editor_shell():
 
 
 @app.post("/upload")
-async def upload(file: UploadFile = File(...)):
+async def upload(file: UploadFile = File(...), session_minutes: int = Form(default=45)):
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         return JSONResponse(status_code=400, content={"error": "Please upload a valid .pdf file."})
+
+    # Clamp the teacher-supplied session length to a sane range.
+    session_minutes = max(10, min(240, session_minutes))
 
     temp_path = UPLOAD_DIR / f"{uuid.uuid4()}_{file.filename}"
     try:
@@ -116,8 +119,8 @@ async def upload(file: UploadFile = File(...)):
         if len(slide_text) > MAX_SLIDE_TEXT_CHARS:
             slide_text = slide_text[:MAX_SLIDE_TEXT_CHARS]
 
-        gemini_data = generate_teacher_guide(file_name, slide_text)
-        guide = dict_to_teacher_guide(gemini_data, file_name)
+        gemini_data = generate_teacher_guide(file_name, slide_text, session_minutes=session_minutes)
+        guide = dict_to_teacher_guide(gemini_data, file_name, session_minutes=session_minutes)
         token = secrets.token_urlsafe(16)
         pending_guides[token] = guide
 

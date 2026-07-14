@@ -3,8 +3,45 @@
 import uuid
 
 
-def dict_to_teacher_guide(data: dict, file_name: str) -> dict:
-    """Convert Gemini JSON output to full TeacherGuide structure with UUIDs."""
+def _normalize_durations(activities: list[dict], session_minutes: int) -> None:
+    """Rescale activity ``duration`` values in place to sum to ``session_minutes``.
+
+    Gemini is prompted to target the session length, but its arithmetic is
+    unreliable, so we proportionally rescale its durations to the exact total and
+    absorb rounding drift into the longest activities — keeping every activity at
+    a minimum of one minute. Skipped when the session is too short to give each
+    activity at least a minute (then the model's own values are kept).
+    """
+    if not activities or session_minutes <= 0 or session_minutes < len(activities):
+        return
+
+    weights = [max(1, int(a.get("duration", 1) or 1)) for a in activities]
+    total = sum(weights)
+    scaled = [max(1, round(w / total * session_minutes)) for w in weights]
+
+    drift = session_minutes - sum(scaled)
+    while drift > 0:  # hand extra minutes to the longest activities first
+        i = max(range(len(scaled)), key=lambda k: scaled[k])
+        scaled[i] += 1
+        drift -= 1
+    while drift < 0:  # trim from the longest activities still above one minute
+        candidates = [k for k in range(len(scaled)) if scaled[k] > 1]
+        i = max(candidates, key=lambda k: scaled[k])
+        scaled[i] -= 1
+        drift += 1
+
+    for act, minutes in zip(activities, scaled):
+        act["duration"] = minutes
+
+
+def dict_to_teacher_guide(
+    data: dict, file_name: str, session_minutes: int | None = None
+) -> dict:
+    """Convert Gemini JSON output to full TeacherGuide structure with UUIDs.
+
+    When ``session_minutes`` is given, activity durations are normalized so they
+    add up to exactly that many minutes.
+    """
     lesson_procedure = []
     for act in data.get("lessonProcedure", []):
         lesson_procedure.append(
@@ -17,6 +54,9 @@ def dict_to_teacher_guide(data: dict, file_name: str) -> dict:
                 "instructions": act.get("instructions", ""),
             }
         )
+
+    if session_minutes:
+        _normalize_durations(lesson_procedure, session_minutes)
 
     glossary = [
         {

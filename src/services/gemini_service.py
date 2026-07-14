@@ -76,7 +76,7 @@ IMPORTANT RULES:
 ACTIVITY TYPE RULES:
 - Use ONLY these exact activityType values: "Recap", "Task Review", "Explore", "Make", "Evaluate", "Share", "Task at Home"
 - Map lesson phases: Initiate → "Recap", Learn/Explore → "Explore", Make/Create → "Make", Share/Present → "Share", Review → "Task Review", Evaluate → "Evaluate"
-- Include 3–6 activities. Estimate duration in minutes (default 10).
+- Include 3–6 activities. The whole session lasts {session_minutes} minutes: assign each activity a "duration" in whole minutes so the activities together add up to about {session_minutes} minutes (never far above or below it).
 - For every "Make" activity, write the "instructions" as an ordered list (<ol> with <li> items) of clear, sequential project steps the instructor can follow — one concrete action per step, in the order they should be performed. Do NOT write Make instructions as a single prose paragraph.
 
 HTML RULES (for "overview" and "instructions" fields ONLY):
@@ -94,16 +94,25 @@ _gemini_client = genai.Client(api_key=GEMINI_API_KEY)
 
 
 def generate_teacher_guide(
-    file_name: str, slide_text: str, *, time_budget: float = GENERATE_TIME_BUDGET
+    file_name: str,
+    slide_text: str,
+    *,
+    session_minutes: int = 45,
+    time_budget: float = GENERATE_TIME_BUDGET,
 ) -> dict:
     """Call Gemini with fallback models and deadline-aware retry logic.
+
+    ``session_minutes`` is the total lesson length the teacher chose; it is fed
+    into the prompt so the generated activity durations target that total.
 
     All backoff sleeps are bounded by ``time_budget`` so the total wall-clock
     time stays under the serverless function timeout. When transient errors
     (503/429) persist past the budget, raises :class:`GuideGenerationBusyError`
     so the caller can surface a retryable "server busy" message.
     """
-    prompt = TEACHER_GUIDE_PROMPT.format(file_name=file_name, slide_text=slide_text)
+    prompt = TEACHER_GUIDE_PROMPT.format(
+        file_name=file_name, slide_text=slide_text, session_minutes=session_minutes
+    )
 
     deadline = time.monotonic() + time_budget
     max_retries = 4

@@ -222,7 +222,7 @@ const EXPORT_STYLES = `
 :root{--primary:#056fec;--border:#e5e7eb;--muted:#6b7280;--card:#ffffff;--bg:#f8fafc;}
 *{box-sizing:border-box;}
 body{font-family:system-ui,-apple-system,'Segoe UI',Arial,sans-serif;max-width:960px;margin:0 auto;padding:32px 20px 64px;line-height:1.6;color:#111827;background:var(--bg);}
-h1.doc-title{color:var(--primary);font-size:28px;margin:0 0 8px;}
+h1.doc-title{color:#000000;font-size:40px;font-weight:800;margin:0 0 8px;}
 .doc-sub{color:var(--muted);margin:0 0 24px;font-size:14px;}
 .card{border:1px solid var(--border);background:var(--card);border-radius:12px;box-shadow:0 1px 2px rgba(0,0,0,.04);margin-bottom:16px;overflow:hidden;}
 .card-summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;padding:16px 24px;font-weight:600;font-size:16px;transition:background .15s;}

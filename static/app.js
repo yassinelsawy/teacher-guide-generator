@@ -15,9 +15,14 @@ const successTitle  = document.getElementById('success-title');
 const openEditorBtn = document.getElementById('open-editor-btn');
 const importGuideBtn = document.getElementById('import-guide-btn');
 const importGuideInput = document.getElementById('import-guide-input');
+const sessionTimeInput = document.getElementById('session-time');
+const timeChips = Array.from(document.querySelectorAll('.time-chip'));
 
 /* ── State ────────────────────────────────────────────────────────── */
 let currentToken = null;
+const MIN_SESSION_MINUTES = 10;
+const MAX_SESSION_MINUTES = 240;
+const DEFAULT_SESSION_MINUTES = 45;
 const GUIDE_STORAGE_KEY = 'teacherGuideData';
 const DEFAULT_GENERATE_LABEL = generateBtn?.dataset?.defaultLabel || 'Generate';
 const LOADING_GENERATE_LABEL = 'Generating...';
@@ -36,6 +41,40 @@ function getUploadEndpointUrl() {
   } catch {
     return target;
   }
+}
+
+/* ── Session length ───────────────────────────────────────────────── */
+// Returns the chosen session length in minutes, clamped to a sane range.
+function getSessionMinutes() {
+  const raw = Number(sessionTimeInput?.value);
+  if (!Number.isFinite(raw) || raw <= 0) return DEFAULT_SESSION_MINUTES;
+  return Math.min(MAX_SESSION_MINUTES, Math.max(MIN_SESSION_MINUTES, Math.round(raw)));
+}
+
+// Highlights the preset chip that matches the current custom value (if any).
+function syncTimeChips() {
+  const value = Number(sessionTimeInput?.value);
+  timeChips.forEach((chip) => {
+    chip.classList.toggle('is-active', Number(chip.dataset.minutes) === value);
+  });
+}
+
+if (sessionTimeInput && timeChips.length) {
+  timeChips.forEach((chip) => {
+    chip.addEventListener('click', () => {
+      sessionTimeInput.value = chip.dataset.minutes;
+      syncTimeChips();
+    });
+  });
+  sessionTimeInput.addEventListener('input', syncTimeChips);
+  // Clamp only when the user leaves the field, so mid-typing isn't fought.
+  sessionTimeInput.addEventListener('blur', () => {
+    if (sessionTimeInput.value !== '') sessionTimeInput.value = String(getSessionMinutes());
+    syncTimeChips();
+  });
+  // Match the highlighted chip to the field's actual value on load (covers
+  // browser form-state restoration that can override the default markup).
+  syncTimeChips();
 }
 
 /* ── File selection ───────────────────────────────────────────────── */
@@ -622,6 +661,7 @@ generateBtn.addEventListener('click', async () => {
 
   const fd = new FormData();
   fd.append('file', fileInput.files[0]);
+  fd.append('session_minutes', String(getSessionMinutes()));
 
   generateBtn.disabled = true;
   startSpinner();

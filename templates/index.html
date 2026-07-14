@@ -34,6 +34,28 @@
       <span class="file-chip-size" id="file-chip-size"></span>
     </div> -->
 
+    <!-- Session length -->
+    <div class="time-setup" id="time-setup">
+      <div class="time-head">
+        <label class="time-label" for="session-time">Session length</label>
+        <span class="time-hint">Activity times in the guide will add up to this.</span>
+      </div>
+      <div class="time-controls" role="group" aria-label="Session length">
+        <div class="time-presets">
+          <button type="button" class="time-chip" data-minutes="30">30 min</button>
+          <button type="button" class="time-chip is-active" data-minutes="45">45 min</button>
+          <button type="button" class="time-chip" data-minutes="60">60 min</button>
+          <button type="button" class="time-chip" data-minutes="90">90 min</button>
+        </div>
+        <div class="time-custom">
+          <input type="number" id="session-time" name="session-time"
+                 min="10" max="240" step="5" value="45" autocomplete="off"
+                 inputmode="numeric" aria-label="Custom session length in minutes" />
+          <span class="time-unit">min</span>
+        </div>
+      </div>
+    </div>
+
     <div class="alert alert-error" id="error-box"></div>
 
     <div class="spinner-wrap" id="spinner">

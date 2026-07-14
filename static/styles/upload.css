@@ -124,6 +124,109 @@ body {
   padding: .1rem .45rem;
 }
 
+/* ── Session Length ───────────────────────────────────────────────── */
+.time-setup {
+  margin-bottom: 1rem;
+  padding: .9rem 1rem;
+  border: 1.5px solid #e6ecf5;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fbfdff 0%, #f6f9fe 100%);
+}
+
+.time-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .6rem;
+  flex-wrap: wrap;
+  margin-bottom: .6rem;
+}
+
+.time-label {
+  font-size: .82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: #4f46e5;
+}
+
+.time-hint {
+  font-size: .76rem;
+  color: #94a3b8;
+}
+
+.time-controls {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+}
+
+.time-presets {
+  display: flex;
+  gap: .4rem;
+  flex-wrap: wrap;
+}
+
+.time-chip {
+  border: 1.5px solid #d5deee;
+  background: #fff;
+  color: #334155;
+  font-size: .86rem;
+  font-weight: 700;
+  padding: .5rem .85rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: border-color .15s, background .15s, color .15s, box-shadow .15s;
+}
+.time-chip:hover { border-color: #a3bffa; background: #f5f8ff; }
+.time-chip.is-active {
+  border-color: #4f46e5;
+  background: linear-gradient(135deg, #4f46e5, #2563eb);
+  color: #fff;
+  box-shadow: 0 6px 14px rgba(79, 70, 229, .28);
+}
+
+.time-custom {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  margin-left: auto;
+  border: 1.5px solid #d5deee;
+  background: #fff;
+  border-radius: 10px;
+  padding: .3rem .6rem;
+  transition: border-color .15s;
+}
+.time-custom:focus-within { border-color: #4f46e5; }
+
+.time-custom input {
+  width: 3.6rem;
+  border: none;
+  outline: none;
+  font-size: .95rem;
+  font-weight: 700;
+  font-family: inherit;
+  color: #1a202c;
+  text-align: right;
+  background: transparent;
+}
+/* Hide number spinners for a cleaner pill (custom step handled by presets). */
+.time-custom input::-webkit-outer-spin-button,
+.time-custom input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.time-custom input[type=number] { -moz-appearance: textfield; }
+
+.time-unit {
+  font-size: .8rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+@media (max-width: 640px) {
+  .time-custom { margin-left: 0; }
+  .time-controls { justify-content: space-between; }
+}
+
 /* ── Buttons ──────────────────────────────────────────────────────── */
 .btn {
   display: inline-flex;

@@ -39,6 +39,10 @@ function getCroppedDataUrl(image: HTMLImageElement, crop: PixelCrop, outWidth: n
 }
 
 export function ImageEditDialog({ src, fileName, onCancel, onApply }: ImageEditDialogProps) {
+  // GIFs must never go through the canvas below: canvas.toDataURL captures only
+  // the first frame, flattening the animation. For GIFs we keep the original
+  // (animated) source and only apply the chosen dimensions.
+  const isGif = /^data:image\/gif/i.test(src) || /\.gif$/i.test(fileName)
   const imgRef = useRef<HTMLImageElement | null>(null)
   const [crop, setCrop] = useState<Crop>()
   const [completedCrop, setCompletedCrop] = useState<PixelCrop>()
@@ -90,6 +94,11 @@ export function ImageEditDialog({ src, fileName, onCancel, onApply }: ImageEditD
   }
 
   const handleApply = () => {
+    if (isGif) {
+      // Keep the animated source; only pass the chosen dimensions (no cropping).
+      onApply(src, fileName, width || null, height || null)
+      return
+    }
     if (!imgRef.current || !completedCrop || completedCrop.width === 0 || completedCrop.height === 0) {
       onApply(src, fileName, null, null)
       return
@@ -112,11 +121,21 @@ export function ImageEditDialog({ src, fileName, onCancel, onApply }: ImageEditD
 
         <div className="flex-1 overflow-auto p-5">
           <div className="flex justify-center bg-muted/30 p-2">
-            <ReactCrop crop={crop} onChange={(_, percentCrop) => setCrop(percentCrop)} onComplete={c => setCompletedCrop(c)}>
-              {/* eslint-disable-next-line jsx-a11y/alt-text */}
-              <img ref={imgRef} src={src} onLoad={onImageLoad} style={{ maxHeight: '50vh' }} />
-            </ReactCrop>
+            {isGif ? (
+              <img ref={imgRef} src={src} onLoad={onImageLoad} alt={fileName} style={{ maxHeight: '50vh' }} />
+            ) : (
+              <ReactCrop crop={crop} onChange={(_, percentCrop) => setCrop(percentCrop)} onComplete={c => setCompletedCrop(c)}>
+                {/* eslint-disable-next-line jsx-a11y/alt-text */}
+                <img ref={imgRef} src={src} onLoad={onImageLoad} style={{ maxHeight: '50vh' }} />
+              </ReactCrop>
+            )}
           </div>
+
+          {isGif && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Cropping is disabled for GIFs so the animation is preserved — you can still resize.
+            </p>
+          )}
 
           <div className="mt-4 flex items-end gap-3">
             <div className="flex flex-col gap-1">

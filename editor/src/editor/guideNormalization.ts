@@ -33,9 +33,10 @@ export function normalizeGuide(input: unknown): TeacherGuide | null {
   const asStringArray = (value: unknown): string[] =>
     Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
 
-  // Preparation used to be a plain-text array; it's now a single rich-text HTML
-  // string. Upgrade guides saved before that change instead of dropping them.
-  const asPreparationHtml = (value: unknown): string => {
+  // Preparation and Bonus Activities used to be plain-text arrays; they're now
+  // single rich-text HTML strings. Upgrade guides saved before that change
+  // instead of dropping them.
+  const asRichTextHtml = (value: unknown): string => {
     if (typeof value === 'string') return value
     const items = asStringArray(value)
     return items.length ? `<ul>${items.map((item) => `<li>${item}</li>`).join('')}</ul>` : ''
@@ -103,7 +104,7 @@ export function normalizeGuide(input: unknown): TeacherGuide | null {
               : normalized.lessonInfo,
             overview: typeof section.overview === 'string' ? section.overview : (typeof section.content === 'string' ? section.content : normalized.overview),
             learningOutcomes: Array.isArray(section.learningOutcomes) ? section.learningOutcomes.filter((value): value is string => typeof value === 'string') : normalized.learningOutcomes,
-            preparation: section.preparation !== undefined ? asPreparationHtml(section.preparation) : normalized.preparation,
+            preparation: section.preparation !== undefined ? asRichTextHtml(section.preparation) : normalized.preparation,
             outlineOverview: Array.isArray(section.outlineOverview)
               ? section.outlineOverview.filter(isRecord).map((row) => ({
                   id: typeof row.id === 'string' ? row.id : crypto.randomUUID(),
@@ -129,7 +130,7 @@ export function normalizeGuide(input: unknown): TeacherGuide | null {
                   definition: typeof entry.definition === 'string' ? entry.definition : '',
                 }))
               : normalized.glossary,
-            bonusActivities: Array.isArray(section.bonusActivities) ? section.bonusActivities.filter((value): value is string => typeof value === 'string') : normalized.bonusActivities,
+            bonusActivities: section.bonusActivities !== undefined ? asRichTextHtml(section.bonusActivities) : normalized.bonusActivities,
             text: typeof section.text === 'string' ? section.text : (typeof section.content === 'string' ? section.content : normalized.text),
           }
         })
@@ -139,11 +140,11 @@ export function normalizeGuide(input: unknown): TeacherGuide | null {
     lessonInfo,
     overview: typeof input.overview === 'string' ? input.overview : '',
     learningOutcomes: asStringArray(input.learningOutcomes),
-    preparation: asPreparationHtml(input.preparation),
+    preparation: asRichTextHtml(input.preparation),
     outlineOverview,
     lessonProcedure,
     glossary,
-    bonusActivities: asStringArray(input.bonusActivities),
+    bonusActivities: asRichTextHtml(input.bonusActivities),
     customSections,
   }
 }

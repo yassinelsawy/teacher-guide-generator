@@ -34,6 +34,18 @@ def _normalize_durations(activities: list[dict], session_minutes: int) -> None:
         act["duration"] = minutes
 
 
+def _as_rich_text_html(value) -> str:
+    """Normalize a "preparation"/"bonusActivities" field to an HTML string.
+
+    Both fields are rich-text HTML now, but tolerate the model (or older saved
+    guides) falling back to the previous plain-text array shape.
+    """
+    if isinstance(value, list):
+        items = [v for v in value if v]
+        return "<ul>" + "".join(f"<li>{v}</li>" for v in items) + "</ul>" if items else ""
+    return value or ""
+
+
 def dict_to_teacher_guide(
     data: dict, file_name: str, session_minutes: int | None = None
 ) -> dict:
@@ -67,12 +79,8 @@ def dict_to_teacher_guide(
     ]
 
     outcomes = [o for o in data.get("learningOutcomes", []) if o]
-    prep = data.get("preparation", "")
-    if isinstance(prep, list):
-        # Tolerate the model falling back to the old plain-text array shape.
-        items = [p for p in prep if p]
-        prep = "<ul>" + "".join(f"<li>{p}</li>" for p in items) + "</ul>" if items else ""
-    bonus = [b for b in data.get("bonusActivities", []) if b]
+    prep = _as_rich_text_html(data.get("preparation", ""))
+    bonus = _as_rich_text_html(data.get("bonusActivities", ""))
 
     # Auto-fill the Outline Overview from the generated procedure so the section
     # isn't empty after PDF generation. Each activity maps to one outline row.
@@ -153,9 +161,9 @@ def teacher_guide_to_html(guide: dict) -> str:
             + "</ul>"
         )
 
-    bonus = [b for b in guide.get("bonusActivities", []) if b]
+    bonus = guide.get("bonusActivities", "")
     if bonus:
         parts.append("<h2>Bonus Activities</h2>")
-        parts.append("<ul>" + "".join(f"<li>{b}</li>" for b in bonus) + "</ul>")
+        parts.append(bonus)
 
     return "\n".join(parts)

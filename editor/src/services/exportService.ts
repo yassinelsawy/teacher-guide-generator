@@ -180,7 +180,7 @@ function customSectionHTML(section: CustomSection): string {
             .join('')}</dl>`
         : ''
       break
-    case 'bonusActivities': body = listHTML(section.bonusActivities); break
+    case 'bonusActivities':  body = section.bonusActivities || ''; break
     case 'text':
     default:                body = section.text || ''; break
   }
@@ -208,7 +208,7 @@ function guideToInteractiveHTML(guide: TeacherGuide): string {
       guide.glossary.length,
     ),
   )
-  sections.push(card('8. Bonus Activities', listHTML(guide.bonusActivities), guide.bonusActivities.filter(Boolean).length || undefined))
+  sections.push(card('8. Bonus Activities', guide.bonusActivities || ''))
 
   ;(guide.customSections || []).forEach((section) => sections.push(customSectionHTML(section)))
 

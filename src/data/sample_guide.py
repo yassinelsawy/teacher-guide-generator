@@ -82,9 +82,11 @@ SAMPLE_GUIDE: dict = {
         {"id": "demo-g4", "concept": "Algorithm", "definition": "A step-by-step set of instructions a computer follows to solve a problem."},
         {"id": "demo-g5", "concept": "Model", "definition": "The result of AI training — can make predictions based on what it learned."},
     ],
-    "bonusActivities": [
-        "Explore Teachable Machine and train a model to recognise gestures using a webcam.",
-        "Research an AI bias case and write a paragraph explaining what went wrong and how to fix it.",
-        "Create a 4-panel comic strip showing how an AI learns to do one task.",
-    ],
+    "bonusActivities": (
+        "<ul>"
+        "<li>Explore Teachable Machine and train a model to recognise gestures using a webcam.</li>"
+        "<li>Research an AI bias case and write a paragraph explaining what went wrong and how to fix it.</li>"
+        "<li>Create a 4-panel comic strip showing how an AI learns to do one task.</li>"
+        "</ul>"
+    ),
 }

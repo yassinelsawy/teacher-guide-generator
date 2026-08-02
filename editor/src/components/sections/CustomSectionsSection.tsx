@@ -76,7 +76,7 @@ function isSectionEmpty(section: CustomSection): boolean {
     case 'glossary':
       return section.glossary.every((entry) => !entry.concept.trim() && !entry.definition.trim())
     case 'bonusActivities':
-      return section.bonusActivities.every((item) => !item.trim())
+      return isHtmlEmpty(section.bonusActivities)
     case 'text':
     default:
       return isHtmlEmpty(section.text)
@@ -108,7 +108,7 @@ function SectionBody({
     case 'glossary':
       return <GlossarySection entries={section.glossary} onChange={(glossary) => onChange({ ...section, glossary })} readOnly={readOnly} />
     case 'bonusActivities':
-      return <BonusActivitiesSection items={section.bonusActivities} onChange={(bonusActivities) => onChange({ ...section, bonusActivities })} readOnly={readOnly} />
+      return <BonusActivitiesSection content={section.bonusActivities} onChange={(bonusActivities) => onChange({ ...section, bonusActivities })} readOnly={readOnly} />
     case 'text':
     default:
       return readOnly ? (

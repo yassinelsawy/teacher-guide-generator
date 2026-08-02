@@ -43,7 +43,7 @@ The guide is organized into nine structured sections, plus custom sections:
 5. **Outline Overview** – table of sections, pedagogy, and duration
 6. **Lesson Procedure** – typed activities (Recap, Explore, Make, Evaluate, Share, etc.) with rich-text instructions
 7. **Glossary**
-8. **Bonus Activities**
+8. **Bonus Activities** – rich-text checklist (supports nested bullets and links)
 9. **Custom Sections** – add sections of any type, rename them, and reorder with drag-and-drop
 
 Editor capabilities:

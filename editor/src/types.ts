@@ -87,7 +87,7 @@ export interface CustomSection {
   outlineOverview: OutlineRow[]
   lessonProcedure: Activity[]
   glossary: GlossaryEntry[]
-  bonusActivities: string[]
+  bonusActivities: string    // HTML from Tiptap
   text: string
 }
 
@@ -99,7 +99,7 @@ export interface TeacherGuide {
   outlineOverview: OutlineRow[]
   lessonProcedure: Activity[]
   glossary: GlossaryEntry[]
-  bonusActivities: string[]
+  bonusActivities: string    // HTML from Tiptap
   customSections: CustomSection[]
 }
 
@@ -123,7 +123,7 @@ export function createCustomSection(sectionType: CustomSectionType = 'text'): Cu
     outlineOverview: [],
     lessonProcedure: [],
     glossary: [{ id: crypto.randomUUID(), concept: '', definition: '' }],
-    bonusActivities: [''],
+    bonusActivities: '',
     text: '',
   }
 }
@@ -159,7 +159,7 @@ export function createDefaultGuide(): TeacherGuide {
       },
     ],
     glossary: [{ id: crypto.randomUUID(), concept: '', definition: '' }],
-    bonusActivities: [],
+    bonusActivities: '',
     customSections: [],
   }
 }
@@ -175,7 +175,7 @@ export function guideToExportJSON(guide: TeacherGuide) {
     outlineOverview: guide.outlineOverview.map(({ id: _id, ...rest }) => rest),
     lessonProcedure: guide.lessonProcedure.map(({ id: _id, ...rest }) => rest),
     glossary: guide.glossary.map(({ id: _id, ...rest }) => rest),
-    bonusActivities: guide.bonusActivities.filter(Boolean),
+    bonusActivities: guide.bonusActivities,
     customSections: guide.customSections.map(({ id: _id, ...rest }) => rest),
   }
 }
@@ -236,10 +236,9 @@ export function guideToHTML(guide: TeacherGuide): string {
     parts.push(`<ul>${guide.glossary.map(g => `<li><strong>${g.concept}:</strong> ${g.definition}</li>`).join('')}</ul>`)
   }
 
-  const bonus = guide.bonusActivities.filter(Boolean)
-  if (bonus.length) {
+  if (guide.bonusActivities) {
     parts.push(tag('h2', 'Bonus Activities'))
-    parts.push(`<ul>${bonus.map(b => tag('li', b)).join('')}</ul>`)
+    parts.push(guide.bonusActivities)
   }
 
   guide.customSections
@@ -297,11 +296,9 @@ export function guideToHTML(guide: TeacherGuide): string {
           }
           break
         }
-        case 'bonusActivities': {
-          const items = section.bonusActivities.filter(Boolean)
-          if (items.length) parts.push(`<ul>${items.map((item) => tag('li', item)).join('')}</ul>`)
+        case 'bonusActivities':
+          if (section.bonusActivities) parts.push(section.bonusActivities)
           break
-        }
         case 'text':
         default:
           if (section.text) parts.push(section.text)

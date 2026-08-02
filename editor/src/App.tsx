@@ -198,8 +198,8 @@ export default function App() {
           <GlossarySection entries={guide.glossary} onChange={v => set('glossary', v)} readOnly={preview} />
         </CollapsibleSection>
 
-        <CollapsibleSection title="8. Bonus Activities" defaultOpen={false} badge={guide.bonusActivities.filter(Boolean).length || undefined} forceOpen={printMode}>
-          <BonusActivitiesSection items={guide.bonusActivities} onChange={v => set('bonusActivities', v)} readOnly={preview} />
+        <CollapsibleSection title="8. Bonus Activities" defaultOpen={false} forceOpen={printMode}>
+          <BonusActivitiesSection content={guide.bonusActivities} onChange={v => set('bonusActivities', v)} readOnly={preview} />
         </CollapsibleSection>
 
         <CustomSectionsSection

@@ -68,7 +68,7 @@ function isSectionEmpty(section: CustomSection): boolean {
     case 'learningOutcomes':
       return section.learningOutcomes.every((item) => !item.trim())
     case 'preparation':
-      return section.preparation.every((item) => !item.trim())
+      return isHtmlEmpty(section.preparation)
     case 'outlineOverview':
       return section.outlineOverview.length === 0
     case 'lessonProcedure':
@@ -100,7 +100,7 @@ function SectionBody({
     case 'learningOutcomes':
       return <LearningOutcomesSection items={section.learningOutcomes} onChange={(learningOutcomes) => onChange({ ...section, learningOutcomes })} readOnly={readOnly} />
     case 'preparation':
-      return <PreparationSection items={section.preparation} onChange={(preparation) => onChange({ ...section, preparation })} readOnly={readOnly} />
+      return <PreparationSection content={section.preparation} onChange={(preparation) => onChange({ ...section, preparation })} readOnly={readOnly} />
     case 'outlineOverview':
       return <OutlineOverviewSection rows={section.outlineOverview} onChange={(outlineOverview) => onChange({ ...section, outlineOverview })} readOnly={readOnly} />
     case 'lessonProcedure':

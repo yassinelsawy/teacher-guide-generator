@@ -83,7 +83,7 @@ export interface CustomSection {
   lessonInfo: LessonInfo
   overview: string
   learningOutcomes: string[]
-  preparation: string[]
+  preparation: string       // HTML from Tiptap
   outlineOverview: OutlineRow[]
   lessonProcedure: Activity[]
   glossary: GlossaryEntry[]
@@ -95,7 +95,7 @@ export interface TeacherGuide {
   lessonInfo: LessonInfo
   overview: string           // HTML
   learningOutcomes: string[]
-  preparation: string[]
+  preparation: string        // HTML from Tiptap
   outlineOverview: OutlineRow[]
   lessonProcedure: Activity[]
   glossary: GlossaryEntry[]
@@ -119,7 +119,7 @@ export function createCustomSection(sectionType: CustomSectionType = 'text'): Cu
     },
     overview: '',
     learningOutcomes: [''],
-    preparation: [''],
+    preparation: '',
     outlineOverview: [],
     lessonProcedure: [],
     glossary: [{ id: crypto.randomUUID(), concept: '', definition: '' }],
@@ -139,7 +139,7 @@ export function createDefaultGuide(): TeacherGuide {
     },
     overview: '',
     learningOutcomes: [''],
-    preparation: [''],
+    preparation: '',
     outlineOverview: [
       {
         id: crypto.randomUUID(),
@@ -171,7 +171,7 @@ export function guideToExportJSON(guide: TeacherGuide) {
     lessonInfo: guide.lessonInfo,
     overview: guide.overview,
     learningOutcomes: guide.learningOutcomes.filter(Boolean),
-    preparation: guide.preparation.filter(Boolean),
+    preparation: guide.preparation,
     outlineOverview: guide.outlineOverview.map(({ id: _id, ...rest }) => rest),
     lessonProcedure: guide.lessonProcedure.map(({ id: _id, ...rest }) => rest),
     glossary: guide.glossary.map(({ id: _id, ...rest }) => rest),
@@ -205,10 +205,9 @@ export function guideToHTML(guide: TeacherGuide): string {
     parts.push(`<ul>${outcomes.map(o => tag('li', o)).join('')}</ul>`)
   }
 
-  const prep = guide.preparation.filter(Boolean)
-  if (prep.length) {
+  if (guide.preparation) {
     parts.push(tag('h2', 'Preparation'))
-    parts.push(`<ul>${prep.map(p => tag('li', p)).join('')}</ul>`)
+    parts.push(guide.preparation)
   }
 
   if (guide.outlineOverview.length) {
@@ -268,11 +267,9 @@ export function guideToHTML(guide: TeacherGuide): string {
           if (items.length) parts.push(`<ul>${items.map((item) => tag('li', item)).join('')}</ul>`)
           break
         }
-        case 'preparation': {
-          const items = section.preparation.filter(Boolean)
-          if (items.length) parts.push(`<ul>${items.map((item) => tag('li', item)).join('')}</ul>`)
+        case 'preparation':
+          if (section.preparation) parts.push(section.preparation)
           break
-        }
         case 'outlineOverview': {
           if (section.outlineOverview.length) {
             const rows = section.outlineOverview

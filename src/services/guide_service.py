@@ -67,7 +67,11 @@ def dict_to_teacher_guide(
     ]
 
     outcomes = [o for o in data.get("learningOutcomes", []) if o]
-    prep = [p for p in data.get("preparation", []) if p]
+    prep = data.get("preparation", "")
+    if isinstance(prep, list):
+        # Tolerate the model falling back to the old plain-text array shape.
+        items = [p for p in prep if p]
+        prep = "<ul>" + "".join(f"<li>{p}</li>" for p in items) + "</ul>" if items else ""
     bonus = [b for b in data.get("bonusActivities", []) if b]
 
     # Auto-fill the Outline Overview from the generated procedure so the section
@@ -93,7 +97,7 @@ def dict_to_teacher_guide(
         },
         "overview": data.get("overview", ""),
         "learningOutcomes": outcomes or [""],
-        "preparation": prep or [""],
+        "preparation": prep,
         "outlineOverview": outline_overview,
         "lessonProcedure": lesson_procedure,
         "glossary": glossary,
@@ -119,10 +123,10 @@ def teacher_guide_to_html(guide: dict) -> str:
         parts.append("<h2>Learning Outcomes</h2>")
         parts.append("<ul>" + "".join(f"<li>{o}</li>" for o in outcomes) + "</ul>")
 
-    prep = [p for p in guide.get("preparation", []) if p]
+    prep = guide.get("preparation", "")
     if prep:
         parts.append("<h2>Preparation</h2>")
-        parts.append("<ul>" + "".join(f"<li>{p}</li>" for p in prep) + "</ul>")
+        parts.append(prep)
 
     procedure = guide.get("lessonProcedure", [])
     if procedure:

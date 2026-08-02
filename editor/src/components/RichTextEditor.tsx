@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { useEditor, EditorContent } from '@tiptap/react'
+import { useEditor, EditorContent, type Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import Placeholder from '@tiptap/extension-placeholder'
@@ -39,7 +39,7 @@ export function RichTextEditor({
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [pendingImage, setPendingImage] = useState<{ src: string; fileName: string } | null>(null)
 
-  const editor = useEditor({
+  const editor: Editor | null = useEditor({
     extensions: [
       StarterKit,
       Underline,
@@ -56,6 +56,16 @@ export function RichTextEditor({
     editable: !readOnly,
     onUpdate({ editor }) {
       onChange(editor.getHTML())
+    },
+    editorProps: {
+      handleKeyDown(_view, event): boolean {
+        if (event.key !== 'Tab') return false
+        if (!editor?.isActive('listItem')) return false
+        event.preventDefault()
+        return event.shiftKey
+          ? editor.chain().focus().liftListItem('listItem').run()
+          : editor.chain().focus().sinkListItem('listItem').run()
+      },
     },
   })
 

@@ -21,11 +21,13 @@ SAMPLE_GUIDE: dict = {
         "Design a basic flowchart describing how an AI system would solve a chosen problem.",
         "Apply critical thinking to evaluate the benefits and limitations of AI tools.",
     ],
-    "preparation": [
-        "Review: machine learning basics, supervised vs unsupervised learning, common AI applications.",
-        "You Will Need: Slides, Teacher Guide, printed AI example cards, internet-connected devices.",
-        "You May Need: A backup offline activity; do a trial run of the Teachable Machine demo.",
-    ],
+    "preparation": (
+        "<ul>"
+        "<li>Review: machine learning basics, supervised vs unsupervised learning, common AI applications.</li>"
+        "<li>You Will Need: Slides, Teacher Guide, printed AI example cards, internet-connected devices.</li>"
+        "<li>You May Need: A backup offline activity; do a trial run of the Teachable Machine demo.</li>"
+        "</ul>"
+    ),
     "outlineOverview": [],
     "lessonProcedure": [
         {

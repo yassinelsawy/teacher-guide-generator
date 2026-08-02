@@ -182,8 +182,8 @@ export default function App() {
           <LearningOutcomesSection items={guide.learningOutcomes} onChange={v => set('learningOutcomes', v)} readOnly={preview} />
         </CollapsibleSection>
 
-        <CollapsibleSection title="4. Preparation" badge={guide.preparation.filter(Boolean).length} forceOpen={printMode}>
-          <PreparationSection items={guide.preparation} onChange={v => set('preparation', v)} readOnly={preview} />
+        <CollapsibleSection title="4. Preparation" forceOpen={printMode}>
+          <PreparationSection content={guide.preparation} onChange={v => set('preparation', v)} readOnly={preview} />
         </CollapsibleSection>
 
         <CollapsibleSection title="5. Outline Overview" badge={guide.outlineOverview.length} forceOpen={printMode}>

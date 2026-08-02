@@ -38,10 +38,7 @@ IMPORTANT RULES:
     "Outcome 1 as plain text",
     "Outcome 2 as plain text"
   ],
-  "preparation": [
-    "Preparation item 1 as plain text",
-    "Preparation item 2 as plain text"
-  ],
+  "preparation": "<ul><li>Preparation item 1</li><li>Preparation item 2</li></ul>",
   "lessonProcedure": [
     {{
       "activityTitle": "Initiate",
@@ -79,7 +76,7 @@ ACTIVITY TYPE RULES:
 - Include 3–6 activities. The whole session lasts {session_minutes} minutes: assign each activity a "duration" in whole minutes so the activities together add up to about {session_minutes} minutes (never far above or below it).
 - For every "Make" activity, write the "instructions" as an ordered list (<ol> with <li> items) of clear, sequential project steps the instructor can follow — one concrete action per step, in the order they should be performed. Do NOT write Make instructions as a single prose paragraph.
 
-HTML RULES (for "overview" and "instructions" fields ONLY):
+HTML RULES (for "overview", "preparation", and "instructions" fields ONLY):
 - Use only: <p>, <ul>, <ol>, <li>, <strong>, <em>, <br>
 
 Write for TEACHERS (not students). Use clear, academic language.

@@ -33,6 +33,14 @@ export function normalizeGuide(input: unknown): TeacherGuide | null {
   const asStringArray = (value: unknown): string[] =>
     Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
 
+  // Preparation used to be a plain-text array; it's now a single rich-text HTML
+  // string. Upgrade guides saved before that change instead of dropping them.
+  const asPreparationHtml = (value: unknown): string => {
+    if (typeof value === 'string') return value
+    const items = asStringArray(value)
+    return items.length ? `<ul>${items.map((item) => `<li>${item}</li>`).join('')}</ul>` : ''
+  }
+
   const outlineOverview = Array.isArray(input.outlineOverview)
     ? input.outlineOverview
         .filter(isRecord)
@@ -95,7 +103,7 @@ export function normalizeGuide(input: unknown): TeacherGuide | null {
               : normalized.lessonInfo,
             overview: typeof section.overview === 'string' ? section.overview : (typeof section.content === 'string' ? section.content : normalized.overview),
             learningOutcomes: Array.isArray(section.learningOutcomes) ? section.learningOutcomes.filter((value): value is string => typeof value === 'string') : normalized.learningOutcomes,
-            preparation: Array.isArray(section.preparation) ? section.preparation.filter((value): value is string => typeof value === 'string') : normalized.preparation,
+            preparation: section.preparation !== undefined ? asPreparationHtml(section.preparation) : normalized.preparation,
             outlineOverview: Array.isArray(section.outlineOverview)
               ? section.outlineOverview.filter(isRecord).map((row) => ({
                   id: typeof row.id === 'string' ? row.id : crypto.randomUUID(),
@@ -131,7 +139,7 @@ export function normalizeGuide(input: unknown): TeacherGuide | null {
     lessonInfo,
     overview: typeof input.overview === 'string' ? input.overview : '',
     learningOutcomes: asStringArray(input.learningOutcomes),
-    preparation: asStringArray(input.preparation),
+    preparation: asPreparationHtml(input.preparation),
     outlineOverview,
     lessonProcedure,
     glossary,

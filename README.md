@@ -39,7 +39,7 @@ The guide is organized into nine structured sections, plus custom sections:
 1. **Lesson Info** – name, grade level, module/slides links, production state
 2. **Overview** – rich-text session summary
 3. **Learning Outcomes**
-4. **Preparation**
+4. **Preparation** – rich-text checklist (supports nested bullets and links)
 5. **Outline Overview** – table of sections, pedagogy, and duration
 6. **Lesson Procedure** – typed activities (Recap, Explore, Make, Evaluate, Share, etc.) with rich-text instructions
 7. **Glossary**

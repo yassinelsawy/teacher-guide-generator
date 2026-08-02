@@ -169,7 +169,7 @@ function customSectionHTML(section: CustomSection): string {
     case 'lessonInfo':      body = lessonInfoHTML(section.lessonInfo); break
     case 'overview':        body = section.overview || ''; break
     case 'learningOutcomes':body = listHTML(section.learningOutcomes); break
-    case 'preparation':     body = listHTML(section.preparation); break
+    case 'preparation':     body = section.preparation || ''; break
     case 'outlineOverview': body = outlineTableHTML(section.outlineOverview); break
     case 'lessonProcedure': body = activityHTML(section.lessonProcedure); break
     case 'glossary':
@@ -193,7 +193,7 @@ function guideToInteractiveHTML(guide: TeacherGuide): string {
   sections.push(card('1. Lesson Info', lessonInfoHTML(guide.lessonInfo)))
   sections.push(card('2. Overview (Lesson Scenario)', guide.overview || ''))
   sections.push(card('3. Learning Outcomes', listHTML(guide.learningOutcomes), guide.learningOutcomes.filter(Boolean).length))
-  sections.push(card('4. Preparation', listHTML(guide.preparation), guide.preparation.filter(Boolean).length))
+  sections.push(card('4. Preparation', guide.preparation || ''))
   sections.push(card('5. Outline Overview', outlineTableHTML(guide.outlineOverview), guide.outlineOverview.length))
   sections.push(card('6. Lesson Procedure', activityHTML(guide.lessonProcedure), guide.lessonProcedure.length))
   sections.push(

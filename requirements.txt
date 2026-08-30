@@ -1,8 +1,6 @@
 fastapi
 uvicorn[standard]
 jinja2
-python-multipart
-pdfplumber
 google-genai
 python-dotenv
 reportlab

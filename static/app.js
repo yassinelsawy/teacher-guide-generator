@@ -32,15 +32,34 @@ function getUploadApiBaseUrl() {
   return base.replace(/\/$/, '');
 }
 
-function getUploadEndpointUrl() {
+function getGenerateEndpointUrl() {
   const base = getUploadApiBaseUrl();
-  const target = `${base}/upload`;
+  const target = `${base}/generate`;
 
   try {
     return new URL(target, window.location.origin).toString();
   } catch {
     return target;
   }
+}
+
+/* ── Client-side PDF text extraction ─────────────────────────────────
+ * Extracting in the browser (instead of uploading the raw PDF) keeps the
+ * request body tiny, avoiding host-level body-size limits (e.g. Vercel's
+ * serverless 4.5MB cap) regardless of PDF file size. */
+async function extractTextFromPdf(file) {
+  const buffer = await file.arrayBuffer();
+  const pdf = await window.pdfjsLib.getDocument({ data: buffer }).promise;
+  const pages = [];
+
+  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+    const page = await pdf.getPage(pageNum);
+    const content = await page.getTextContent();
+    const text = content.items.map((item) => item.str).join(' ').replace(/\s+/g, ' ').trim();
+    if (text) pages.push(`--- Page ${pageNum} ---\n${text}`);
+  }
+
+  return pages.join('\n');
 }
 
 /* ── Session length ───────────────────────────────────────────────── */
@@ -117,8 +136,8 @@ dropzone.addEventListener('drop', e => {
 
 /* ── Spinner ──────────────────────────────────────────────────────── */
 const msgs = [
-  'Uploading file...',
-  'Extracting PDF text...',
+  'Reading PDF file...',
+  'Extracting text...',
   'Sending to Gemini AI...',
   'Generating Teacher Guide...',
   'Almost done...'
@@ -645,21 +664,41 @@ generateBtn.addEventListener('click', async () => {
   clearError();
   if (successSection) successSection.classList.remove('show');
 
-  if (!fileInput.files[0]) {
+  const file = fileInput.files[0];
+  if (!file) {
     showError('Please select a .pdf file first.');
     return;
   }
-
-  const fd = new FormData();
-  fd.append('file', fileInput.files[0]);
-  fd.append('session_minutes', String(getSessionMinutes()));
 
   generateBtn.disabled = true;
   startSpinner();
 
   try {
-    const uploadEndpoint = getUploadEndpointUrl();
-    const res = await fetch(uploadEndpoint, { method: 'POST', body: fd });
+    let slideText;
+    try {
+      slideText = await extractTextFromPdf(file);
+    } catch {
+      showError('Failed to read the PDF file. It may be corrupted or password-protected.');
+      return;
+    }
+
+    if (!slideText.trim()) {
+      showError('No readable text found in the uploaded PDF.');
+      return;
+    }
+
+    const payload = {
+      file_name: file.name.replace(/\.pdf$/i, ''),
+      slide_text: slideText,
+      session_minutes: getSessionMinutes(),
+    };
+
+    const generateEndpoint = getGenerateEndpointUrl();
+    const res = await fetch(generateEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
     const rawBody = await res.text();
     let data = {};
 

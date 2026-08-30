@@ -60,15 +60,15 @@ Editor capabilities:
 ## How It Works
 
 ```
-PDF upload ──▶ pdfplumber (text extraction) ──▶ Gemini (structured guide)
-                                                      │
-                       browser local storage ◀── React editor ◀── one-time token
-                                                      │
-                                        HTML export / PDF export
+PDF file ──▶ pdf.js (browser text extraction) ──▶ POST /generate ──▶ Gemini (structured guide)
+                                                                          │
+                            browser local storage ◀── React editor ◀── one-time token
+                                                                          │
+                                                            HTML export / PDF export
 ```
 
-1. The PDF is uploaded to `POST /upload` and stored temporarily.
-2. `pdfplumber` extracts the slide text (capped at 60k characters to stay within the serverless timeout).
+1. The PDF never leaves the browser: `pdf.js` extracts the slide text client-side, keeping the request body small regardless of PDF size (avoids serverless body-size limits). The server truncates it to 60k characters before generation.
+2. The extracted text is sent as JSON to `POST /generate`.
 3. Gemini generates a structured guide, which is returned with a one-time retrieval token.
 4. The editor loads the guide and autosaves edits locally.
 5. Exports render either standalone HTML or a ReportLab-generated PDF.
@@ -81,7 +81,7 @@ PDF upload ──▶ pdfplumber (text extraction) ──▶ Gemini (structured g
 | --- | --- |
 | Backend | FastAPI, Uvicorn, Jinja2 |
 | AI | Google Gemini via `google-genai` |
-| PDF text extraction | `pdfplumber` |
+| PDF text extraction | `pdf.js` (client-side, in the browser) |
 | PDF export | ReportLab |
 | Editor | React, TypeScript, Vite, Tailwind CSS, Radix UI, Tiptap, dnd-kit |
 | Hosting | Vercel serverless (or single FastAPI server) |
@@ -185,6 +185,7 @@ uvicorn src.app:app --reload
 - `api/index.py` is the serverless entrypoint.
 - `vercel.json` routes all requests to the FastAPI app (60s max duration).
 - Set `GEMINI_API_KEY` in the Vercel project settings.
+- PDF text is extracted client-side (`pdf.js`) before the request reaches the server, so uploads stay well under Vercel's serverless body-size limit regardless of PDF size.
 - Rebuild the editor before deploying frontend changes:
 
 ```bash
@@ -205,7 +206,7 @@ The backend serves both the generator page and the built editor bundle from the 
 | --- | --- | --- |
 | `GET` | `/` | Generator / upload page. |
 | `GET` | `/editor` | Built editor shell. |
-| `POST` | `/upload` | Upload a PDF; returns `{ token, file_name, guide }`. |
+| `POST` | `/generate` | Generate a guide from `{ file_name, slide_text, session_minutes }` (text already extracted client-side); returns `{ token, file_name, guide }`. |
 | `GET` | `/guide/{token}` | Retrieve a generated guide once (consumed on read). |
 | `GET` | `/demo` | Sample guide payload for preview/testing. |
 | `POST` | `/export-pdf` | Convert `{ html, file_name }` into a downloadable PDF. |
@@ -232,9 +233,8 @@ The backend serves both the generator page and the built editor bundle from the 
 │  ├─ app.py                   # Routes and app wiring
 │  ├─ config.py                # Environment and path config
 │  ├─ data/sample_guide.py     # Demo guide payload
-│  ├─ services/                # Gemini, guide, and PDF services
-│  └─ utils/pdf_text.py        # PDF text extraction
-├─ static/                     # Upload page assets + built editor output
+│  └─ services/                # Gemini, guide, and PDF services
+├─ static/                     # Upload page assets (incl. pdf.js text extraction) + built editor output
 ├─ templates/index.html        # Upload page template
 ├─ requirements.txt
 └─ vercel.json

@@ -8,9 +8,9 @@ from google import genai
 
 from src.config import GEMINI_API_KEY, GEMINI_MODEL, GEMINI_MODEL_FALLBACKS
 
-# Total wall-clock budget for the whole generate call, in seconds. Kept safely
-# below the Vercel function timeout (see vercel.json `maxDuration`) so we can
-# return a clean error to the client instead of being hard-killed mid-request.
+# Total wall-clock budget for the whole generate call, in seconds. Kept
+# conservative so we can return a clean error to the client instead of the
+# request being hard-killed mid-call by a host-level timeout.
 GENERATE_TIME_BUDGET = 45.0
 
 

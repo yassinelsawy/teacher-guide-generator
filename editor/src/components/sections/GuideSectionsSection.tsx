@@ -89,7 +89,7 @@ function isSectionEmpty(section: GuideSection): boolean {
     case 'outlineOverview':
       return section.outlineOverview.length === 0
     case 'lessonProcedure':
-      return section.lessonProcedure.every((sub) => sub.activities.length === 0)
+      return section.lessonProcedure.length === 0
     case 'glossary':
       return section.glossary.every((entry) => !entry.concept.trim() && !entry.definition.trim())
     case 'bonusActivities':
@@ -120,7 +120,7 @@ function SectionBody({
     case 'outlineOverview':
       return <OutlineOverviewSection rows={section.outlineOverview} onChange={(outlineOverview) => onChange({ ...section, outlineOverview })} readOnly={readOnly} />
     case 'lessonProcedure':
-      return <LessonProcedureSection subsections={section.lessonProcedure} onChange={(lessonProcedure) => onChange({ ...section, lessonProcedure })} readOnly={readOnly} />
+      return <LessonProcedureSection activities={section.lessonProcedure} onChange={(lessonProcedure) => onChange({ ...section, lessonProcedure })} readOnly={readOnly} />
     case 'glossary':
       return <GlossarySection entries={section.glossary} onChange={(glossary) => onChange({ ...section, glossary })} readOnly={readOnly} />
     case 'bonusActivities':

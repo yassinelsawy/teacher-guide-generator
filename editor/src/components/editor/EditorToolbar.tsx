@@ -9,7 +9,6 @@ interface EditorToolbarProps {
   gradeLevel: string
   productionState: string
   preview: boolean
-  printMode: boolean
   resetStep: 0 | 1
   saveStatus: 'idle' | 'saving' | 'saved' | 'error'
   canUndo: boolean
@@ -17,7 +16,6 @@ interface EditorToolbarProps {
   onTogglePreview: () => void
   onBackToGenerator: () => void
   onExportHTML: () => void
-  onExportPDF: () => void
   onReset: () => void
 }
 
@@ -26,7 +24,6 @@ export function EditorToolbar({
   gradeLevel,
   productionState,
   preview,
-  printMode,
   resetStep,
   saveStatus,
   canUndo,
@@ -34,7 +31,6 @@ export function EditorToolbar({
   onTogglePreview,
   onBackToGenerator,
   onExportHTML,
-  onExportPDF,
   onReset,
 }: EditorToolbarProps) {
   const saveBadge = saveStatus === 'saving' ? (
@@ -87,10 +83,6 @@ export function EditorToolbar({
 
         <Button type="button" variant="outline" size="sm" onClick={onExportHTML}>
           <Download className="mr-1.5 h-4 w-4" /> Export HTML
-        </Button>
-
-        <Button type="button" variant="outline" size="sm" onClick={onExportPDF} disabled={printMode}>
-          <Download className="mr-1.5 h-4 w-4" /> {printMode ? 'Preparing…' : 'Export PDF'}
         </Button>
 
         <Button

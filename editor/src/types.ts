@@ -44,25 +44,6 @@ export interface Activity {
   instructions: string  // HTML from Tiptap
 }
 
-// A named group of activities inside a Lesson Procedure section, so a lesson
-// can be broken into multiple parts (e.g. "Part 1", "Part 2") without needing
-// a separate custom section for each one.
-export interface ProcedureSubsection {
-  id: string
-  title: string
-  activities: Activity[]
-}
-
-export function createProcedureSubsection(): ProcedureSubsection {
-  return {
-    id: crypto.randomUUID(),
-    title: '',
-    activities: [
-      { id: crypto.randomUUID(), activityType: 'Explore', activityTitle: '', duration: 10, instructions: '' },
-    ],
-  }
-}
-
 export interface GlossaryEntry {
   id: string
   concept: string
@@ -104,7 +85,7 @@ export interface GuideSection {
   learningOutcomes: string[]
   preparation: string       // HTML from Tiptap
   outlineOverview: OutlineRow[]
-  lessonProcedure: ProcedureSubsection[]
+  lessonProcedure: Activity[]
   glossary: GlossaryEntry[]
   bonusActivities: string    // HTML from Tiptap
 }
@@ -144,7 +125,9 @@ export function createDefaultGuide(): TeacherGuide {
   ]
 
   const lessonProcedure = createGuideSection('lessonProcedure')
-  lessonProcedure.lessonProcedure = [createProcedureSubsection()]
+  lessonProcedure.lessonProcedure = [
+    { id: crypto.randomUUID(), activityType: 'Explore', activityTitle: '', duration: 10, instructions: '' },
+  ]
 
   return {
     sections: [
@@ -178,13 +161,7 @@ export function guideToExportJSON(guide: TeacherGuide) {
         case 'outlineOverview':
           return { ...base, outlineOverview: section.outlineOverview.map(({ id: _id, ...rest }) => rest) }
         case 'lessonProcedure':
-          return {
-            ...base,
-            lessonProcedure: section.lessonProcedure.map(({ id: _id, activities, ...rest }) => ({
-              ...rest,
-              activities: activities.map(({ id: _actId, ...act }) => act),
-            })),
-          }
+          return { ...base, lessonProcedure: section.lessonProcedure.map(({ id: _id, ...rest }) => rest) }
         case 'glossary':
           return { ...base, glossary: section.glossary.map(({ id: _id, ...rest }) => rest) }
         case 'bonusActivities':

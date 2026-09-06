@@ -6,7 +6,6 @@ import {
   type GlossaryEntry,
   type GuideSection,
   type OutlineRow,
-  type ProcedureSubsection,
   type SectionType,
   type TeacherGuide,
 } from '@/types'
@@ -83,23 +82,20 @@ function normalizeActivity(value: unknown): Activity {
   }
 }
 
-// Accepts either the current shape (an array of named subsections, each with
-// its own activities) or the legacy flat shape (a plain array of activities,
-// as still produced by the AI-generation backend) and wraps the latter into a
-// single untitled subsection.
-function normalizeProcedure(value: unknown): ProcedureSubsection[] {
+// Accepts the current flat shape (a plain array of activities) or, for
+// guides briefly saved with the now-removed "named subsections" layout, a
+// list of { activities: [...] } groups — flattened back into one plain list.
+function normalizeProcedure(value: unknown): Activity[] {
   if (!Array.isArray(value) || value.length === 0) return []
 
   const looksLikeSubsections = isRecord(value[0]) && Array.isArray((value[0] as Record<string, unknown>).activities)
   if (looksLikeSubsections) {
-    return value.filter(isRecord).map((sub) => ({
-      id: typeof sub.id === 'string' ? sub.id : crypto.randomUUID(),
-      title: typeof sub.title === 'string' ? sub.title : '',
-      activities: Array.isArray(sub.activities) ? sub.activities.map(normalizeActivity) : [],
-    }))
+    return value
+      .filter(isRecord)
+      .flatMap((sub) => (Array.isArray(sub.activities) ? sub.activities.map(normalizeActivity) : []))
   }
 
-  return [{ id: crypto.randomUUID(), title: '', activities: value.map(normalizeActivity) }]
+  return value.map(normalizeActivity)
 }
 
 function normalizeGlossary(value: unknown): GlossaryEntry[] {

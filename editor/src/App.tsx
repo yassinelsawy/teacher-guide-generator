@@ -1,21 +1,12 @@
 // Main editor container: loads guide state, coordinates section editors, and triggers exports.
 import { useState, useEffect } from 'react'
-import { CollapsibleSection } from '@/components/CollapsibleSection'
 import { EditorToolbar } from '@/components/editor/EditorToolbar'
-import { LessonInfoSection }       from '@/components/sections/LessonInfoSection'
-import { OverviewSection }         from '@/components/sections/OverviewSection'
-import { LearningOutcomesSection } from '@/components/sections/LearningOutcomesSection'
-import { PreparationSection }      from '@/components/sections/PreparationSection'
-import { OutlineOverviewSection }  from '@/components/sections/OutlineOverviewSection'
-import { LessonProcedureSection }  from '@/components/sections/LessonProcedureSection'
-import { GlossarySection }         from '@/components/sections/GlossarySection'
-import { BonusActivitiesSection }  from '@/components/sections/BonusActivitiesSection'
-import { CustomSectionsSection }   from '@/components/sections/CustomSectionsSection'
+import { GuideSectionsSection } from '@/components/sections/GuideSectionsSection'
 import { useAutoSave, loadSaved }  from '@/hooks/useAutoSave'
 import { useUndoableState }        from '@/hooks/useUndoableState'
 import { normalizeGuide } from '@/editor/guideNormalization'
 import { exportGuideAsHTML } from '@/services/exportService'
-import { createDefaultGuide, type TeacherGuide } from '@/types'
+import { createDefaultGuide, type GuideSection, type TeacherGuide } from '@/types'
 
 const API_BASE = import.meta.env.DEV ? '/api' : ''
 const PENDING_GUIDE_KEY_PREFIX = 'pending-guide:'
@@ -103,9 +94,10 @@ export default function App() {
       })
   }, [])
 
-  // ── Partial updaters ────────────────────────────────────────────
-  const set = <K extends keyof TeacherGuide>(key: K, value: TeacherGuide[K]) =>
-    setGuide(g => ({ ...g, [key]: value }))
+  // ── Section list updater ──────────────────────────────────────────
+  const setSections = (sections: GuideSection[]) => setGuide(g => ({ ...g, sections }))
+
+  const lessonInfo = guide.sections.find((s) => s.sectionType === 'lessonInfo')?.lessonInfo
 
   // ── Export standalone HTML ───────────────────────────────────────
   const exportHTML = () => {
@@ -151,9 +143,9 @@ export default function App() {
   return (
     <div className="min-h-screen bg-muted/30">
       <EditorToolbar
-        lessonName={guide.lessonInfo.lessonName}
-        gradeLevel={guide.lessonInfo.gradeLevel}
-        productionState={guide.lessonInfo.productionState}
+        lessonName={lessonInfo?.lessonName ?? ''}
+        gradeLevel={lessonInfo?.gradeLevel ?? ''}
+        productionState={lessonInfo?.productionState ?? ''}
         preview={preview}
         printMode={printMode}
         resetStep={resetStep}
@@ -170,41 +162,9 @@ export default function App() {
       {/* ── Main content ──────────────────────────────────────────── */}
       <main className="mx-auto max-w-5xl px-4 py-8 space-y-4">
 
-        <CollapsibleSection title="1. Lesson Info" forceOpen={printMode}>
-          <LessonInfoSection data={guide.lessonInfo} onChange={v => set('lessonInfo', v)} readOnly={preview} />
-        </CollapsibleSection>
-
-        <CollapsibleSection title="2. Overview (Lesson Scenario)" forceOpen={printMode}>
-          <OverviewSection content={guide.overview} onChange={v => set('overview', v)} readOnly={preview} />
-        </CollapsibleSection>
-
-        <CollapsibleSection title="3. Learning Outcomes" badge={guide.learningOutcomes.filter(Boolean).length} forceOpen={printMode}>
-          <LearningOutcomesSection items={guide.learningOutcomes} onChange={v => set('learningOutcomes', v)} readOnly={preview} />
-        </CollapsibleSection>
-
-        <CollapsibleSection title="4. Preparation" forceOpen={printMode}>
-          <PreparationSection content={guide.preparation} onChange={v => set('preparation', v)} readOnly={preview} />
-        </CollapsibleSection>
-
-        <CollapsibleSection title="5. Outline Overview" badge={guide.outlineOverview.length} forceOpen={printMode}>
-          <OutlineOverviewSection rows={guide.outlineOverview} onChange={v => set('outlineOverview', v)} readOnly={preview} />
-        </CollapsibleSection>
-
-        <CollapsibleSection title="6. Lesson Procedure" badge={guide.lessonProcedure.length} forceOpen={printMode}>
-          <LessonProcedureSection activities={guide.lessonProcedure} onChange={v => set('lessonProcedure', v)} readOnly={preview} />
-        </CollapsibleSection>
-
-        <CollapsibleSection title="7. Glossary" badge={guide.glossary.length} forceOpen={printMode}>
-          <GlossarySection entries={guide.glossary} onChange={v => set('glossary', v)} readOnly={preview} />
-        </CollapsibleSection>
-
-        <CollapsibleSection title="8. Bonus Activities" defaultOpen={false} forceOpen={printMode}>
-          <BonusActivitiesSection content={guide.bonusActivities} onChange={v => set('bonusActivities', v)} readOnly={preview} />
-        </CollapsibleSection>
-
-        <CustomSectionsSection
-          sections={guide.customSections || []}
-          onChange={(sections) => set('customSections', sections)}
+        <GuideSectionsSection
+          sections={guide.sections}
+          onChange={setSections}
           readOnly={preview}
           forceOpen={printMode}
         />

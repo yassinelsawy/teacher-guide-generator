@@ -44,13 +44,32 @@ export interface Activity {
   instructions: string  // HTML from Tiptap
 }
 
+// A named group of activities inside a Lesson Procedure section, so a lesson
+// can be broken into multiple parts (e.g. "Part 1", "Part 2") without needing
+// a separate custom section for each one.
+export interface ProcedureSubsection {
+  id: string
+  title: string
+  activities: Activity[]
+}
+
+export function createProcedureSubsection(): ProcedureSubsection {
+  return {
+    id: crypto.randomUUID(),
+    title: '',
+    activities: [
+      { id: crypto.randomUUID(), activityType: 'Explore', activityTitle: '', duration: 10, instructions: '' },
+    ],
+  }
+}
+
 export interface GlossaryEntry {
   id: string
   concept: string
   definition: string
 }
 
-export const CUSTOM_SECTION_TYPES = [
+export const SECTION_TYPES = [
   { value: 'lessonInfo', label: 'Lesson Info' },
   { value: 'overview', label: 'Overview' },
   { value: 'learningOutcomes', label: 'Learning Outcomes' },
@@ -59,12 +78,11 @@ export const CUSTOM_SECTION_TYPES = [
   { value: 'lessonProcedure', label: 'Lesson Procedure' },
   { value: 'glossary', label: 'Glossary' },
   { value: 'bonusActivities', label: 'Bonus Activities' },
-  { value: 'text', label: 'Text Block' },
 ] as const
 
-export type CustomSectionType = (typeof CUSTOM_SECTION_TYPES)[number]['value']
+export type SectionType = (typeof SECTION_TYPES)[number]['value']
 
-export const CUSTOM_SECTION_TYPE_LABELS: Record<CustomSectionType, string> = {
+export const SECTION_TYPE_LABELS: Record<SectionType, string> = {
   lessonInfo: 'Lesson Info',
   overview: 'Overview',
   learningOutcomes: 'Learning Outcomes',
@@ -73,43 +91,35 @@ export const CUSTOM_SECTION_TYPE_LABELS: Record<CustomSectionType, string> = {
   lessonProcedure: 'Lesson Procedure',
   glossary: 'Glossary',
   bonusActivities: 'Bonus Activities',
-  text: 'Text Block',
 }
 
-export interface CustomSection {
+// A guide section: one instance of a section type. The guide is just an
+// ordered list of these, so any type can be duplicated and reordered freely.
+export interface GuideSection {
   id: string
-  sectionType: CustomSectionType
+  sectionType: SectionType
   title: string
   lessonInfo: LessonInfo
   overview: string
   learningOutcomes: string[]
   preparation: string       // HTML from Tiptap
   outlineOverview: OutlineRow[]
-  lessonProcedure: Activity[]
+  lessonProcedure: ProcedureSubsection[]
   glossary: GlossaryEntry[]
   bonusActivities: string    // HTML from Tiptap
-  text: string
 }
 
 export interface TeacherGuide {
-  lessonInfo: LessonInfo
-  overview: string           // HTML
-  learningOutcomes: string[]
-  preparation: string        // HTML from Tiptap
-  outlineOverview: OutlineRow[]
-  lessonProcedure: Activity[]
-  glossary: GlossaryEntry[]
-  bonusActivities: string    // HTML from Tiptap
-  customSections: CustomSection[]
+  sections: GuideSection[]
 }
 
 // ─── Factory ──────────────────────────────────────────────────────────────────
 
-export function createCustomSection(sectionType: CustomSectionType = 'text'): CustomSection {
+export function createGuideSection(sectionType: SectionType): GuideSection {
   return {
     id: crypto.randomUUID(),
     sectionType,
-    title: CUSTOM_SECTION_TYPE_LABELS[sectionType],
+    title: SECTION_TYPE_LABELS[sectionType],
     lessonInfo: {
       lessonName: '',
       gradeLevel: '',
@@ -124,43 +134,29 @@ export function createCustomSection(sectionType: CustomSectionType = 'text'): Cu
     lessonProcedure: [],
     glossary: [{ id: crypto.randomUUID(), concept: '', definition: '' }],
     bonusActivities: '',
-    text: '',
   }
 }
 
 export function createDefaultGuide(): TeacherGuide {
+  const outlineOverview = createGuideSection('outlineOverview')
+  outlineOverview.outlineOverview = [
+    { id: crypto.randomUUID(), type: '', sectionName: '', pedagogy: '', durationMinutes: 0 },
+  ]
+
+  const lessonProcedure = createGuideSection('lessonProcedure')
+  lessonProcedure.lessonProcedure = [createProcedureSubsection()]
+
   return {
-    lessonInfo: {
-      lessonName: '',
-      gradeLevel: '',
-      moduleLink: '',
-      slidesLink: '',
-      productionState: 'Draft',
-    },
-    overview: '',
-    learningOutcomes: [''],
-    preparation: '',
-    outlineOverview: [
-      {
-        id: crypto.randomUUID(),
-        type: '',
-        sectionName: '',
-        pedagogy: '',
-        durationMinutes: 0,
-      },
+    sections: [
+      createGuideSection('lessonInfo'),
+      createGuideSection('overview'),
+      createGuideSection('learningOutcomes'),
+      createGuideSection('preparation'),
+      outlineOverview,
+      lessonProcedure,
+      createGuideSection('glossary'),
+      createGuideSection('bonusActivities'),
     ],
-    lessonProcedure: [
-      {
-        id: crypto.randomUUID(),
-        activityType: 'Explore',
-        activityTitle: '',
-        duration: 10,
-        instructions: '',
-      },
-    ],
-    glossary: [{ id: crypto.randomUUID(), concept: '', definition: '' }],
-    bonusActivities: '',
-    customSections: [],
   }
 }
 
@@ -168,143 +164,34 @@ export function createDefaultGuide(): TeacherGuide {
 
 export function guideToExportJSON(guide: TeacherGuide) {
   return {
-    lessonInfo: guide.lessonInfo,
-    overview: guide.overview,
-    learningOutcomes: guide.learningOutcomes.filter(Boolean),
-    preparation: guide.preparation,
-    outlineOverview: guide.outlineOverview.map(({ id: _id, ...rest }) => rest),
-    lessonProcedure: guide.lessonProcedure.map(({ id: _id, ...rest }) => rest),
-    glossary: guide.glossary.map(({ id: _id, ...rest }) => rest),
-    bonusActivities: guide.bonusActivities,
-    customSections: guide.customSections.map(({ id: _id, ...rest }) => rest),
-  }
-}
-
-// ─── HTML export helper (for PDF generation via backend) ─────────────────────
-
-export function guideToHTML(guide: TeacherGuide): string {
-  const parts: string[] = []
-  const tag = (t: string, s: string) => `<${t}>${s}</${t}>`
-
-  if (guide.lessonInfo.lessonName) parts.push(tag('h1', guide.lessonInfo.lessonName))
-
-  const meta = [
-    guide.lessonInfo.gradeLevel && `Grade: ${guide.lessonInfo.gradeLevel}`,
-    guide.lessonInfo.productionState && `Status: ${guide.lessonInfo.productionState}`,
-  ].filter(Boolean).join(' · ')
-  if (meta) parts.push(tag('p', meta))
-
-  if (guide.overview) {
-    parts.push(tag('h2', 'Session Overview'))
-    parts.push(guide.overview)
-  }
-
-  const outcomes = guide.learningOutcomes.filter(Boolean)
-  if (outcomes.length) {
-    parts.push(tag('h2', 'Learning Outcomes'))
-    parts.push(`<ul>${outcomes.map(o => tag('li', o)).join('')}</ul>`)
-  }
-
-  if (guide.preparation) {
-    parts.push(tag('h2', 'Preparation'))
-    parts.push(guide.preparation)
-  }
-
-  if (guide.outlineOverview.length) {
-    parts.push(tag('h2', 'Lesson Outline'))
-    const rows = guide.outlineOverview
-      .map(r => `<li><strong>${r.sectionName}</strong>${r.pedagogy ? ` – ${r.pedagogy}` : ''}${r.durationMinutes ? ` (${r.durationMinutes} min)` : ''}</li>`)
-      .join('')
-    parts.push(`<ul>${rows}</ul>`)
-  }
-
-  if (guide.lessonProcedure.length) {
-    parts.push(tag('h2', 'Lesson Procedure'))
-    guide.lessonProcedure.forEach(act => {
-      const header = [
-        act.activityTitle,
-        `[${act.activityType}]`,
-        act.duration ? `${act.duration} min` : '',
-      ].filter(Boolean).join(' · ')
-      parts.push(tag('h3', header))
-      if (act.instructions) parts.push(act.instructions)
-    })
-  }
-
-  if (guide.glossary.length) {
-    parts.push(tag('h2', 'Glossary'))
-    parts.push(`<ul>${guide.glossary.map(g => `<li><strong>${g.concept}:</strong> ${g.definition}</li>`).join('')}</ul>`)
-  }
-
-  if (guide.bonusActivities) {
-    parts.push(tag('h2', 'Bonus Activities'))
-    parts.push(guide.bonusActivities)
-  }
-
-  guide.customSections
-    .filter((section) => section.title || section.text)
-    .forEach((section) => {
-      parts.push(tag('h2', section.title || CUSTOM_SECTION_TYPE_LABELS[section.sectionType] || 'Custom Section'))
-
+    sections: guide.sections.map((section) => {
+      const base = { sectionType: section.sectionType, title: section.title }
       switch (section.sectionType) {
-        case 'lessonInfo': {
-          const meta = [
-            section.lessonInfo.lessonName && `Lesson: ${section.lessonInfo.lessonName}`,
-            section.lessonInfo.gradeLevel && `Grade: ${section.lessonInfo.gradeLevel}`,
-            section.lessonInfo.moduleLink && `Module: ${section.lessonInfo.moduleLink}`,
-            section.lessonInfo.slidesLink && `Slides: ${section.lessonInfo.slidesLink}`,
-            section.lessonInfo.productionState && `Status: ${section.lessonInfo.productionState}`,
-          ].filter(Boolean).join(' · ')
-          if (meta) parts.push(tag('p', meta))
-          break
-        }
+        case 'lessonInfo':
+          return { ...base, lessonInfo: section.lessonInfo }
         case 'overview':
-          if (section.overview) parts.push(section.overview)
-          break
-        case 'learningOutcomes': {
-          const items = section.learningOutcomes.filter(Boolean)
-          if (items.length) parts.push(`<ul>${items.map((item) => tag('li', item)).join('')}</ul>`)
-          break
-        }
+          return { ...base, overview: section.overview }
+        case 'learningOutcomes':
+          return { ...base, learningOutcomes: section.learningOutcomes.filter(Boolean) }
         case 'preparation':
-          if (section.preparation) parts.push(section.preparation)
-          break
-        case 'outlineOverview': {
-          if (section.outlineOverview.length) {
-            const rows = section.outlineOverview
-              .map((row) => `<li><strong>${row.sectionName}</strong>${row.pedagogy ? ` – ${row.pedagogy}` : ''}${row.durationMinutes ? ` (${row.durationMinutes} min)` : ''}</li>`)
-              .join('')
-            parts.push(`<ul>${rows}</ul>`)
+          return { ...base, preparation: section.preparation }
+        case 'outlineOverview':
+          return { ...base, outlineOverview: section.outlineOverview.map(({ id: _id, ...rest }) => rest) }
+        case 'lessonProcedure':
+          return {
+            ...base,
+            lessonProcedure: section.lessonProcedure.map(({ id: _id, activities, ...rest }) => ({
+              ...rest,
+              activities: activities.map(({ id: _actId, ...act }) => act),
+            })),
           }
-          break
-        }
-        case 'lessonProcedure': {
-          section.lessonProcedure.forEach((act) => {
-            const header = [
-              act.activityTitle,
-              `[${act.activityType}]`,
-              act.duration ? `${act.duration} min` : '',
-            ].filter(Boolean).join(' · ')
-            parts.push(tag('h3', header))
-            if (act.instructions) parts.push(act.instructions)
-          })
-          break
-        }
-        case 'glossary': {
-          if (section.glossary.length) {
-            parts.push(`<ul>${section.glossary.map((entry) => `<li><strong>${entry.concept}:</strong> ${entry.definition}</li>`).join('')}</ul>`)
-          }
-          break
-        }
+        case 'glossary':
+          return { ...base, glossary: section.glossary.map(({ id: _id, ...rest }) => rest) }
         case 'bonusActivities':
-          if (section.bonusActivities) parts.push(section.bonusActivities)
-          break
-        case 'text':
+          return { ...base, bonusActivities: section.bonusActivities }
         default:
-          if (section.text) parts.push(section.text)
-          break
+          return base
       }
-    })
-
-  return parts.join('\n')
+    }),
+  }
 }

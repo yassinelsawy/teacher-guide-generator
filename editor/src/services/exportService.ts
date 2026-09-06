@@ -1,10 +1,12 @@
 // Frontend-only export helpers for Teacher Guide outputs.
 import {
   guideToExportJSON,
-  CUSTOM_SECTION_TYPE_LABELS,
+  SECTION_TYPE_LABELS,
   type Activity,
-  type CustomSection,
+  type GuideSection,
+  type LessonInfo,
   type OutlineRow,
+  type ProcedureSubsection,
   type TeacherGuide,
 } from '@/types'
 
@@ -60,10 +62,14 @@ async function saveOrDownload(blob: Blob, suggestedName: string, description: st
   triggerDownload(blob, suggestedName)
 }
 
+function findLessonInfo(guide: TeacherGuide): LessonInfo | undefined {
+  return guide.sections.find((s) => s.sectionType === 'lessonInfo')?.lessonInfo
+}
+
 export function exportGuideAsJSON(guide: TeacherGuide) {
   const data = guideToExportJSON(guide)
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-  const suggestedName = `${sanitizeFileName(guide.lessonInfo.lessonName || 'Teacher Guide')}.json`
+  const suggestedName = `${sanitizeFileName(findLessonInfo(guide)?.lessonName || 'Teacher Guide')}.json`
   void saveOrDownload(blob, suggestedName, 'JSON file', { 'application/json': ['.json'] })
 }
 
@@ -131,8 +137,8 @@ function outlineTableHTML(rows: OutlineRow[]): string {
 </table>`
 }
 
-// Each activity is itself collapsible, matching the editor's ActivityCard.
-function activityHTML(activities: Activity[]): string {
+// A single flat run of activity cards, each collapsible like the editor's ActivityCard.
+function activityCardsHTML(activities: Activity[]): string {
   if (!activities.length) return ''
   return activities
     .map((act, i) => {
@@ -150,7 +156,19 @@ function activityHTML(activities: Activity[]): string {
     .join('')
 }
 
-function lessonInfoHTML(info: TeacherGuide['lessonInfo']): string {
+// Lesson Procedure is a list of named subsections, each with its own run of activities.
+function procedureHTML(subsections: ProcedureSubsection[]): string {
+  return subsections
+    .map((sub) => {
+      const activities = activityCardsHTML(sub.activities)
+      if (!activities) return ''
+      const heading = sub.title.trim() ? `<h4 class="procedure-subsection-title">${esc(sub.title)}</h4>` : ''
+      return `${heading}${activities}`
+    })
+    .join('')
+}
+
+function lessonInfoHTML(info: LessonInfo): string {
   const rows = [
     info.lessonName && ['Lesson', esc(info.lessonName)],
     info.gradeLevel && ['Grade', esc(info.gradeLevel)],
@@ -162,57 +180,43 @@ function lessonInfoHTML(info: TeacherGuide['lessonInfo']): string {
   return `<dl class="info">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`
 }
 
-function customSectionHTML(section: CustomSection): string {
-  const title = section.title || CUSTOM_SECTION_TYPE_LABELS[section.sectionType] || 'Custom Section'
-  let body = ''
+function sectionBodyHTML(section: GuideSection): string {
   switch (section.sectionType) {
-    case 'lessonInfo':      body = lessonInfoHTML(section.lessonInfo); break
-    case 'overview':        body = section.overview || ''; break
-    case 'learningOutcomes':body = listHTML(section.learningOutcomes); break
-    case 'preparation':     body = section.preparation || ''; break
-    case 'outlineOverview': body = outlineTableHTML(section.outlineOverview); break
-    case 'lessonProcedure': body = activityHTML(section.lessonProcedure); break
-    case 'glossary':
-      body = section.glossary.filter((g) => g.concept || g.definition).length
-        ? `<dl class="glossary">${section.glossary
-            .filter((g) => g.concept || g.definition)
-            .map((g) => `<dt>${esc(g.concept)}</dt><dd>${esc(g.definition)}</dd>`)
-            .join('')}</dl>`
+    case 'lessonInfo':      return lessonInfoHTML(section.lessonInfo)
+    case 'overview':        return section.overview || ''
+    case 'learningOutcomes':return listHTML(section.learningOutcomes)
+    case 'preparation':     return section.preparation || ''
+    case 'outlineOverview': return outlineTableHTML(section.outlineOverview)
+    case 'lessonProcedure': return procedureHTML(section.lessonProcedure)
+    case 'glossary': {
+      const entries = section.glossary.filter((g) => g.concept || g.definition)
+      return entries.length
+        ? `<dl class="glossary">${entries.map((g) => `<dt>${esc(g.concept)}</dt><dd>${esc(g.definition)}</dd>`).join('')}</dl>`
         : ''
-      break
-    case 'bonusActivities':  body = section.bonusActivities || ''; break
-    case 'text':
-    default:                body = section.text || ''; break
+    }
+    case 'bonusActivities': return section.bonusActivities || ''
+    default:                return ''
   }
-  return card(title, body)
+}
+
+function sectionBadge(section: GuideSection): number | undefined {
+  switch (section.sectionType) {
+    case 'learningOutcomes': return section.learningOutcomes.filter(Boolean).length
+    case 'outlineOverview':  return section.outlineOverview.length
+    case 'lessonProcedure':  return section.lessonProcedure.reduce((s, sub) => s + sub.activities.length, 0)
+    case 'glossary':         return section.glossary.filter((g) => g.concept || g.definition).length
+    default:                 return undefined
+  }
 }
 
 function guideToInteractiveHTML(guide: TeacherGuide): string {
-  const sections: string[] = []
-
-  sections.push(card('1. Lesson Info', lessonInfoHTML(guide.lessonInfo)))
-  sections.push(card('2. Overview (Lesson Scenario)', guide.overview || ''))
-  sections.push(card('3. Learning Outcomes', listHTML(guide.learningOutcomes), guide.learningOutcomes.filter(Boolean).length))
-  sections.push(card('4. Preparation', guide.preparation || ''))
-  sections.push(card('5. Outline Overview', outlineTableHTML(guide.outlineOverview), guide.outlineOverview.length))
-  sections.push(card('6. Lesson Procedure', activityHTML(guide.lessonProcedure), guide.lessonProcedure.length))
-  sections.push(
-    card(
-      '7. Glossary',
-      guide.glossary.filter((g) => g.concept || g.definition).length
-        ? `<dl class="glossary">${guide.glossary
-            .filter((g) => g.concept || g.definition)
-            .map((g) => `<dt>${esc(g.concept)}</dt><dd>${esc(g.definition)}</dd>`)
-            .join('')}</dl>`
-        : '',
-      guide.glossary.length,
-    ),
-  )
-  sections.push(card('8. Bonus Activities', guide.bonusActivities || ''))
-
-  ;(guide.customSections || []).forEach((section) => sections.push(customSectionHTML(section)))
-
-  return sections.filter(Boolean).join('\n')
+  return guide.sections
+    .map((section, index) => {
+      const title = `${index + 1}. ${section.title || SECTION_TYPE_LABELS[section.sectionType]}`
+      return card(title, sectionBodyHTML(section), sectionBadge(section))
+    })
+    .filter(Boolean)
+    .join('\n')
 }
 
 const EXPORT_STYLES = `
@@ -241,6 +245,8 @@ table.outline tfoot td:first-child{text-align:right;color:var(--muted);font-weig
 dl.info,dl.glossary{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;margin:0;font-size:14px;}
 dl.info dt,dl.glossary dt{font-weight:600;color:var(--muted);}
 dl.info dd,dl.glossary dd{margin:0;}
+.procedure-subsection-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);margin:16px 0 8px;}
+.procedure-subsection-title:first-child{margin-top:0;}
 .activity{border:1px solid var(--border);border-radius:10px;margin-bottom:12px;overflow:hidden;background:var(--card);}
 .activity:last-child{margin-bottom:0;}
 .activity-summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:12px 16px;flex-wrap:wrap;}
@@ -269,10 +275,11 @@ const EXPAND_SCRIPT = `
 
 export function exportGuideAsHTML(guide: TeacherGuide) {
   const contentHTML = guideToInteractiveHTML(guide)
-  const title = guide.lessonInfo.lessonName || 'Teacher Guide'
+  const lessonInfo = findLessonInfo(guide)
+  const title = lessonInfo?.lessonName || 'Teacher Guide'
   const sub = [
-    guide.lessonInfo.gradeLevel && `Grade: ${guide.lessonInfo.gradeLevel}`,
-    guide.lessonInfo.productionState && `Status: ${guide.lessonInfo.productionState}`,
+    lessonInfo?.gradeLevel && `Grade: ${lessonInfo.gradeLevel}`,
+    lessonInfo?.productionState && `Status: ${lessonInfo.productionState}`,
   ]
     .filter(Boolean)
     .join(' · ')
@@ -295,6 +302,6 @@ ${contentHTML}
 </html>`
 
   const blob = new Blob([htmlDocument], { type: 'text/html' })
-  const suggestedName = `${sanitizeFileName(guide.lessonInfo.lessonName || 'Teacher Guide')}.html`
+  const suggestedName = `${sanitizeFileName(title)}.html`
   void saveOrDownload(blob, suggestedName, 'HTML file', { 'text/html': ['.html'] })
 }

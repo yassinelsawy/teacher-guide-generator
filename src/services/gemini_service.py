@@ -4,14 +4,17 @@ import json
 import re
 import time
 
+import httpx
 from google import genai
+from google.genai import types
 
 from src.config import GEMINI_API_KEY, GEMINI_MODEL, GEMINI_MODEL_FALLBACKS
 
-# Total wall-clock budget for the whole generate call, in seconds. Kept safely
-# below the Vercel function timeout (see vercel.json `maxDuration`) so we can
-# return a clean error to the client instead of being hard-killed mid-request.
-GENERATE_TIME_BUDGET = 45.0
+# Total wall-clock budget for the whole generate call, in seconds. Kept well
+# under Vercel's 60s hard function limit so cold starts and other overhead
+# outside this budget can't push the request into a host-level hard kill
+# (which returns a raw timeout error instead of our own clean JSON error).
+GENERATE_TIME_BUDGET = 35.0
 
 
 class GuideGenerationBusyError(RuntimeError):
@@ -141,7 +144,19 @@ def generate_teacher_guide(
 
         for attempt in range(max_retries):
             try:
-                response = _gemini_client.models.generate_content(model=model_name, contents=prompt)
+                # Bound each individual call to whatever's left of the budget (minus
+                # a buffer for response handling), so one slow/hanging call can't run
+                # past our own deadline and get hard-killed by the host's own function
+                # timeout instead of surfacing a clean, retryable error.
+                remaining = deadline - time.monotonic()
+                call_timeout_ms = max(5_000, int((remaining - 2) * 1000))
+                response = _gemini_client.models.generate_content(
+                    model=model_name,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        http_options=types.HttpOptions(timeout=call_timeout_ms)
+                    ),
+                )
                 raw = response.text.strip()
                 raw = re.sub(r"^```(?:json)?\s*", "", raw, flags=re.IGNORECASE)
                 raw = re.sub(r"\s*```$", "", raw)
@@ -169,13 +184,14 @@ def generate_teacher_guide(
                         continue
                     break
 
-                if "503" in err_str or "UNAVAILABLE" in err_str or "overloaded" in err_str.lower():
+                is_timeout = isinstance(exc, httpx.TimeoutException) or "timeout" in err_str.lower()
+                if "503" in err_str or "UNAVAILABLE" in err_str or "overloaded" in err_str.lower() or is_timeout:
                     hit_transient = True
                     if attempt < max_retries - 1 and backoff(per_model_delay):
                         per_model_delay *= 2
                         continue
-                    # Overloaded even after retries (or out of budget) — try the
-                    # next fallback model.
+                    # Overloaded/timed out even after retries (or out of budget) —
+                    # try the next fallback model.
                     break
 
                 raise

@@ -23,9 +23,6 @@ GEMINI_MODEL_FALLBACKS = [
 
 UPLOAD_API_BASE_URL = os.getenv("UPLOAD_API_BASE_URL", "").strip().rstrip("/")
 
-UPLOAD_DIR = Path("/tmp/uploads") if os.getenv("VERCEL") else Path("uploads")
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-
 STATIC_DIR = Path("static")
 EDITOR_BUILD_INDEX = STATIC_DIR / "editor" / "index.html"
 

@@ -2,22 +2,19 @@
 
 import logging
 import secrets
-import shutil
-import uuid
-from pathlib import Path
 
-from fastapi import FastAPI, File, Form, Request, UploadFile
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
 
-from src.config import CORS_ORIGINS, EDITOR_BUILD_INDEX, UPLOAD_API_BASE_URL, UPLOAD_DIR
+from src.config import CORS_ORIGINS, EDITOR_BUILD_INDEX, UPLOAD_API_BASE_URL
 from src.data.sample_guide import SAMPLE_GUIDE
 from src.services.gemini_service import GuideGenerationBusyError, generate_teacher_guide
 from src.services.guide_service import dict_to_teacher_guide, teacher_guide_to_html
 from src.services.pdf_service import export_pdf_buffer, safe_pdf_filename
-from src.utils.pdf_text import extract_text_from_pdf
 
 logger = logging.getLogger(__name__)
 
@@ -95,30 +92,34 @@ async def editor_shell():
     return response
 
 
-@app.post("/upload")
-async def upload(file: UploadFile = File(...), session_minutes: int = Form(default=45)):
-    if not file.filename or not file.filename.lower().endswith(".pdf"):
-        return JSONResponse(status_code=400, content={"error": "Please upload a valid .pdf file."})
+class GenerateRequest(BaseModel):
+    file_name: str
+    slide_text: str
+    session_minutes: int = 45
 
+
+@app.post("/generate")
+async def generate(payload: GenerateRequest):
+    """Generate a teacher guide from PDF text already extracted client-side.
+
+    Extraction happens in the browser (see static/app.js) rather than
+    uploading the raw PDF, so the request body stays small regardless of PDF
+    size -- avoiding host-level body-size limits on serverless platforms.
+    """
+    if not payload.slide_text.strip():
+        return JSONResponse(status_code=422, content={"error": "No readable text found in the uploaded PDF."})
+
+    file_name = payload.file_name.strip() or "Untitled"
     # Clamp the teacher-supplied session length to a sane range.
-    session_minutes = max(10, min(240, session_minutes))
+    session_minutes = max(10, min(240, payload.session_minutes))
 
-    temp_path = UPLOAD_DIR / f"{uuid.uuid4()}_{file.filename}"
+    slide_text = payload.slide_text
+    # Cap the prompt size: very long decks slow generation enough to risk the
+    # serverless timeout, and the guide only needs a representative sample.
+    if len(slide_text) > MAX_SLIDE_TEXT_CHARS:
+        slide_text = slide_text[:MAX_SLIDE_TEXT_CHARS]
+
     try:
-        with temp_path.open("wb") as tmp_file:
-            shutil.copyfileobj(file.file, tmp_file)
-
-        _, slide_text = extract_text_from_pdf(temp_path)
-        file_name = Path(file.filename).stem
-
-        if not slide_text.strip():
-            return JSONResponse(status_code=422, content={"error": "No readable text found in the uploaded PDF."})
-
-        # Cap the prompt size: very long decks slow generation enough to risk the
-        # serverless timeout, and the guide only needs a representative sample.
-        if len(slide_text) > MAX_SLIDE_TEXT_CHARS:
-            slide_text = slide_text[:MAX_SLIDE_TEXT_CHARS]
-
         gemini_data = generate_teacher_guide(file_name, slide_text, session_minutes=session_minutes)
         guide = dict_to_teacher_guide(gemini_data, file_name, session_minutes=session_minutes)
         token = secrets.token_urlsafe(16)
@@ -126,17 +127,14 @@ async def upload(file: UploadFile = File(...), session_minutes: int = Form(defau
 
         return JSONResponse(content={"token": token, "file_name": file_name, "guide": guide})
     except GuideGenerationBusyError as exc:
-        logger.warning("Guide generation busy/timed out for file '%s': %s", file.filename, exc)
+        logger.warning("Guide generation busy/timed out for file '%s': %s", file_name, exc)
         return JSONResponse(status_code=503, content={"error": str(exc)})
     except Exception:
-        logger.exception("Guide generation failed for file '%s'", file.filename)
+        logger.exception("Guide generation failed for file '%s'", file_name)
         return JSONResponse(
             status_code=500,
             content={"error": "Failed to generate the teacher guide. Please try again."},
         )
-    finally:
-        if temp_path.exists():
-            temp_path.unlink()
 
 
 @app.get("/demo")

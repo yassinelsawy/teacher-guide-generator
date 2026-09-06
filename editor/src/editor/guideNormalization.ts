@@ -1,6 +1,21 @@
 // Normalizes loaded guide payloads into a safe TeacherGuide shape.
-import { createCustomSection, type TeacherGuide, type CustomSectionType, CUSTOM_SECTION_TYPE_LABELS } from '@/types'
+import {
+  SECTION_TYPES,
+  SECTION_TYPE_LABELS,
+  type Activity,
+  type GlossaryEntry,
+  type GuideSection,
+  type OutlineRow,
+  type SectionType,
+  type TeacherGuide,
+} from '@/types'
 import { isRecord } from '@/utils/objectUtils'
+
+const SECTION_TYPE_VALUES: readonly string[] = SECTION_TYPES.map((t) => t.value)
+
+function isSectionType(value: string): value is SectionType {
+  return SECTION_TYPE_VALUES.includes(value)
+}
 
 const ACTIVITY_META_MARKER = /\[(Recap|Task Review|Explore|Make|Evaluate|Share|Task at Home)\]|\d+\s*min/i
 
@@ -19,132 +34,165 @@ function cleanActivityTitle(title: string): string {
     .trim()
 }
 
+const asStringArray = (value: unknown): string[] =>
+  Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+
+// Preparation and Bonus Activities used to be plain-text arrays; they're now
+// single rich-text HTML strings. Upgrade guides saved before that change
+// instead of dropping them.
+function asRichTextHtml(value: unknown): string {
+  if (typeof value === 'string') return value
+  const items = asStringArray(value)
+  return items.length ? `<ul>${items.map((item) => `<li>${item}</li>`).join('')}</ul>` : ''
+}
+
+function normalizeLessonInfo(value: unknown) {
+  if (!isRecord(value)) return null
+  return {
+    lessonName: typeof value.lessonName === 'string' ? value.lessonName : '',
+    gradeLevel: typeof value.gradeLevel === 'string' ? value.gradeLevel : '',
+    moduleLink: typeof value.moduleLink === 'string' ? value.moduleLink : '',
+    slidesLink: typeof value.slidesLink === 'string' ? value.slidesLink : '',
+    productionState: typeof value.productionState === 'string' ? value.productionState : 'Draft',
+  }
+}
+
+function normalizeOutline(value: unknown): OutlineRow[] {
+  if (!Array.isArray(value)) return []
+  return value.filter(isRecord).map((row) => ({
+    id: typeof row.id === 'string' ? row.id : crypto.randomUUID(),
+    type: typeof row.type === 'string' ? row.type : '',
+    sectionName: typeof row.sectionName === 'string' ? row.sectionName : '',
+    pedagogy: typeof row.pedagogy === 'string' ? row.pedagogy : '',
+    durationMinutes:
+      typeof row.durationMinutes === 'number' && Number.isFinite(row.durationMinutes) ? row.durationMinutes : 0,
+  }))
+}
+
+function normalizeActivity(value: unknown): Activity {
+  if (!isRecord(value)) {
+    return { id: crypto.randomUUID(), activityType: 'Explore', activityTitle: '', duration: 10, instructions: '' }
+  }
+  return {
+    id: typeof value.id === 'string' ? value.id : crypto.randomUUID(),
+    activityType: typeof value.activityType === 'string' ? value.activityType : 'Explore',
+    activityTitle: typeof value.activityTitle === 'string' ? cleanActivityTitle(value.activityTitle) : '',
+    duration: typeof value.duration === 'number' && Number.isFinite(value.duration) ? value.duration : 10,
+    instructions: typeof value.instructions === 'string' ? value.instructions : '',
+  }
+}
+
+// Accepts the current flat shape (a plain array of activities) or, for
+// guides briefly saved with the now-removed "named subsections" layout, a
+// list of { activities: [...] } groups — flattened back into one plain list.
+function normalizeProcedure(value: unknown): Activity[] {
+  if (!Array.isArray(value) || value.length === 0) return []
+
+  const looksLikeSubsections = isRecord(value[0]) && Array.isArray((value[0] as Record<string, unknown>).activities)
+  if (looksLikeSubsections) {
+    return value
+      .filter(isRecord)
+      .flatMap((sub) => (Array.isArray(sub.activities) ? sub.activities.map(normalizeActivity) : []))
+  }
+
+  return value.map(normalizeActivity)
+}
+
+function normalizeGlossary(value: unknown): GlossaryEntry[] {
+  if (!Array.isArray(value)) return []
+  return value.filter(isRecord).map((entry) => ({
+    id: typeof entry.id === 'string' ? entry.id : crypto.randomUUID(),
+    concept: typeof entry.concept === 'string' ? entry.concept : '',
+    definition: typeof entry.definition === 'string' ? entry.definition : '',
+  }))
+}
+
+// Reads the fields relevant to `sectionType` off a loosely-typed record,
+// falling back to that type's defaults for anything missing or malformed.
+// Used both for legacy flat guide payloads (each "section" is really just the
+// whole guide object) and for individual entries already shaped as sections.
+function normalizeSectionContent(raw: Record<string, unknown>, sectionType: SectionType) {
+  const lessonInfo = normalizeLessonInfo(raw.lessonInfo)
+  return {
+    lessonInfo: lessonInfo ?? {
+      lessonName: '',
+      gradeLevel: '',
+      moduleLink: '',
+      slidesLink: '',
+      productionState: 'Draft',
+    },
+    overview: typeof raw.overview === 'string' ? raw.overview : '',
+    learningOutcomes: raw.learningOutcomes !== undefined ? asStringArray(raw.learningOutcomes) : [''],
+    preparation: raw.preparation !== undefined ? asRichTextHtml(raw.preparation) : '',
+    outlineOverview: normalizeOutline(raw.outlineOverview),
+    lessonProcedure: normalizeProcedure(raw.lessonProcedure),
+    glossary: raw.glossary !== undefined ? normalizeGlossary(raw.glossary) : [{ id: crypto.randomUUID(), concept: '', definition: '' }],
+    bonusActivities: raw.bonusActivities !== undefined ? asRichTextHtml(raw.bonusActivities) : '',
+    sectionType,
+  }
+}
+
+function buildSection(raw: Record<string, unknown>, sectionType: SectionType, fallbackTitle: string, idOverride?: string): GuideSection {
+  const content = normalizeSectionContent(raw, sectionType)
+  return {
+    id: idOverride ?? (typeof raw.id === 'string' ? raw.id : crypto.randomUUID()),
+    sectionType,
+    title: typeof raw.title === 'string' && raw.title.trim() ? raw.title : fallbackTitle,
+    lessonInfo: content.lessonInfo,
+    overview: content.overview,
+    learningOutcomes: content.learningOutcomes,
+    preparation: content.preparation,
+    outlineOverview: content.outlineOverview,
+    lessonProcedure: content.lessonProcedure,
+    glossary: content.glossary,
+    bonusActivities: content.bonusActivities,
+  }
+}
+
+const LEGACY_MAIN_SECTION_TYPES: SectionType[] = [
+  'lessonInfo',
+  'overview',
+  'learningOutcomes',
+  'preparation',
+  'outlineOverview',
+  'lessonProcedure',
+  'glossary',
+  'bonusActivities',
+]
+
 export function normalizeGuide(input: unknown): TeacherGuide | null {
-  if (!isRecord(input) || !isRecord(input.lessonInfo)) return null
+  if (!isRecord(input)) return null
 
-  const lessonInfo = {
-    lessonName: typeof input.lessonInfo.lessonName === 'string' ? input.lessonInfo.lessonName : '',
-    gradeLevel: typeof input.lessonInfo.gradeLevel === 'string' ? input.lessonInfo.gradeLevel : '',
-    moduleLink: typeof input.lessonInfo.moduleLink === 'string' ? input.lessonInfo.moduleLink : '',
-    slidesLink: typeof input.lessonInfo.slidesLink === 'string' ? input.lessonInfo.slidesLink : '',
-    productionState: typeof input.lessonInfo.productionState === 'string' ? input.lessonInfo.productionState : 'Draft',
+  // Current shape: the guide is already an ordered list of sections.
+  if (Array.isArray(input.sections)) {
+    const sections = input.sections
+      .filter(isRecord)
+      .map((raw) => {
+        const rawType = typeof raw.sectionType === 'string' ? raw.sectionType : ''
+        const sectionType = isSectionType(rawType) ? rawType : 'overview'
+        return buildSection(raw, sectionType, SECTION_TYPE_LABELS[sectionType])
+      })
+    return { sections }
   }
 
-  const asStringArray = (value: unknown): string[] =>
-    Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+  // Legacy shape: fixed top-level fields, optionally with a `customSections`
+  // array holding extra (repeatable) blocks. Convert both into one flat,
+  // ordered list of sections.
+  if (!isRecord(input.lessonInfo)) return null
 
-  // Preparation and Bonus Activities used to be plain-text arrays; they're now
-  // single rich-text HTML strings. Upgrade guides saved before that change
-  // instead of dropping them.
-  const asRichTextHtml = (value: unknown): string => {
-    if (typeof value === 'string') return value
-    const items = asStringArray(value)
-    return items.length ? `<ul>${items.map((item) => `<li>${item}</li>`).join('')}</ul>` : ''
-  }
+  const mainSections = LEGACY_MAIN_SECTION_TYPES.map((sectionType) =>
+    buildSection(input, sectionType, SECTION_TYPE_LABELS[sectionType]),
+  )
 
-  const outlineOverview = Array.isArray(input.outlineOverview)
-    ? input.outlineOverview
-        .filter(isRecord)
-        .map((row) => ({
-          id: typeof row.id === 'string' ? row.id : crypto.randomUUID(),
-          type: typeof row.type === 'string' ? row.type : '',
-          sectionName: typeof row.sectionName === 'string' ? row.sectionName : '',
-          pedagogy: typeof row.pedagogy === 'string' ? row.pedagogy : '',
-          durationMinutes:
-            typeof row.durationMinutes === 'number' && Number.isFinite(row.durationMinutes)
-              ? row.durationMinutes
-              : 0,
-        }))
-    : []
-
-  const lessonProcedure = Array.isArray(input.lessonProcedure)
-    ? input.lessonProcedure
-        .filter(isRecord)
-        .map((act) => ({
-          id: typeof act.id === 'string' ? act.id : crypto.randomUUID(),
-          activityType: typeof act.activityType === 'string' ? act.activityType : 'Explore',
-          activityTitle: typeof act.activityTitle === 'string' ? cleanActivityTitle(act.activityTitle) : '',
-          duration: typeof act.duration === 'number' && Number.isFinite(act.duration) ? act.duration : 10,
-          instructions: typeof act.instructions === 'string' ? act.instructions : '',
-        }))
-    : []
-
-  const glossary = Array.isArray(input.glossary)
-    ? input.glossary
-        .filter(isRecord)
-        .map((entry) => ({
-          id: typeof entry.id === 'string' ? entry.id : crypto.randomUUID(),
-          concept: typeof entry.concept === 'string' ? entry.concept : '',
-          definition: typeof entry.definition === 'string' ? entry.definition : '',
-        }))
-    : []
-
-  const customSections = Array.isArray(input.customSections)
+  const extraSections = Array.isArray(input.customSections)
     ? input.customSections
         .filter(isRecord)
+        .filter((section) => isSectionType(typeof section.sectionType === 'string' ? section.sectionType : ''))
         .map((section) => {
-          const rawType = typeof section.sectionType === 'string' ? section.sectionType : 'text'
-          const sectionType = Object.prototype.hasOwnProperty.call(CUSTOM_SECTION_TYPE_LABELS, rawType)
-            ? (rawType as CustomSectionType)
-            : 'text'
-          const normalized = createCustomSection(sectionType)
-
-          return {
-            ...normalized,
-            id: typeof section.id === 'string' ? section.id : crypto.randomUUID(),
-            title: typeof section.title === 'string' && section.title.trim() ? section.title : normalized.title,
-            lessonInfo: isRecord(section.lessonInfo)
-              ? {
-                  lessonName: typeof section.lessonInfo.lessonName === 'string' ? section.lessonInfo.lessonName : '',
-                  gradeLevel: typeof section.lessonInfo.gradeLevel === 'string' ? section.lessonInfo.gradeLevel : '',
-                  moduleLink: typeof section.lessonInfo.moduleLink === 'string' ? section.lessonInfo.moduleLink : '',
-                  slidesLink: typeof section.lessonInfo.slidesLink === 'string' ? section.lessonInfo.slidesLink : '',
-                  productionState: typeof section.lessonInfo.productionState === 'string' ? section.lessonInfo.productionState : 'Draft',
-                }
-              : normalized.lessonInfo,
-            overview: typeof section.overview === 'string' ? section.overview : (typeof section.content === 'string' ? section.content : normalized.overview),
-            learningOutcomes: Array.isArray(section.learningOutcomes) ? section.learningOutcomes.filter((value): value is string => typeof value === 'string') : normalized.learningOutcomes,
-            preparation: section.preparation !== undefined ? asRichTextHtml(section.preparation) : normalized.preparation,
-            outlineOverview: Array.isArray(section.outlineOverview)
-              ? section.outlineOverview.filter(isRecord).map((row) => ({
-                  id: typeof row.id === 'string' ? row.id : crypto.randomUUID(),
-                  type: typeof row.type === 'string' ? row.type : '',
-                  sectionName: typeof row.sectionName === 'string' ? row.sectionName : '',
-                  pedagogy: typeof row.pedagogy === 'string' ? row.pedagogy : '',
-                  durationMinutes: typeof row.durationMinutes === 'number' && Number.isFinite(row.durationMinutes) ? row.durationMinutes : 0,
-                }))
-              : normalized.outlineOverview,
-            lessonProcedure: Array.isArray(section.lessonProcedure)
-              ? section.lessonProcedure.filter(isRecord).map((act) => ({
-                  id: typeof act.id === 'string' ? act.id : crypto.randomUUID(),
-                  activityType: typeof act.activityType === 'string' ? act.activityType : 'Explore',
-                  activityTitle: typeof act.activityTitle === 'string' ? cleanActivityTitle(act.activityTitle) : '',
-                  duration: typeof act.duration === 'number' && Number.isFinite(act.duration) ? act.duration : 10,
-                  instructions: typeof act.instructions === 'string' ? act.instructions : '',
-                }))
-              : normalized.lessonProcedure,
-            glossary: Array.isArray(section.glossary)
-              ? section.glossary.filter(isRecord).map((entry) => ({
-                  id: typeof entry.id === 'string' ? entry.id : crypto.randomUUID(),
-                  concept: typeof entry.concept === 'string' ? entry.concept : '',
-                  definition: typeof entry.definition === 'string' ? entry.definition : '',
-                }))
-              : normalized.glossary,
-            bonusActivities: section.bonusActivities !== undefined ? asRichTextHtml(section.bonusActivities) : normalized.bonusActivities,
-            text: typeof section.text === 'string' ? section.text : (typeof section.content === 'string' ? section.content : normalized.text),
-          }
+          const sectionType = section.sectionType as SectionType
+          return buildSection(section, sectionType, SECTION_TYPE_LABELS[sectionType])
         })
     : []
 
-  return {
-    lessonInfo,
-    overview: typeof input.overview === 'string' ? input.overview : '',
-    learningOutcomes: asStringArray(input.learningOutcomes),
-    preparation: asRichTextHtml(input.preparation),
-    outlineOverview,
-    lessonProcedure,
-    glossary,
-    bonusActivities: asRichTextHtml(input.bonusActivities),
-    customSections,
-  }
+  return { sections: [...mainSections, ...extraSections] }
 }

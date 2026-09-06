@@ -186,6 +186,16 @@ function normalizeGuide(raw) {
   const toStringArray = (value) =>
     Array.isArray(value) ? value.filter((item) => typeof item === 'string') : [];
 
+  // Preparation and Bonus Activities are rich-text HTML in the current editor
+  // schema, but used to be plain-text arrays. Accept either so older exports
+  // (and parsers that still emit arrays) don't get silently stripped of links
+  // and formatting.
+  const asRichTextHtml = (value) => {
+    if (typeof value === 'string') return value;
+    const items = toStringArray(value);
+    return items.length ? `<ul>${items.map((item) => `<li>${item}</li>`).join('')}</ul>` : '';
+  };
+
   const outlineOverview = Array.isArray(raw.outlineOverview)
     ? raw.outlineOverview
         .filter(isObject)
@@ -230,11 +240,11 @@ function normalizeGuide(raw) {
     },
     overview: typeof raw.overview === 'string' ? raw.overview : '',
     learningOutcomes: toStringArray(raw.learningOutcomes),
-    preparation: toStringArray(raw.preparation),
+    preparation: asRichTextHtml(raw.preparation),
     outlineOverview,
     lessonProcedure,
     glossary,
-    bonusActivities: toStringArray(raw.bonusActivities),
+    bonusActivities: asRichTextHtml(raw.bonusActivities),
   };
 }
 
@@ -279,13 +289,21 @@ function extractHTML(nodes) {
   return nodes.map((node) => node.outerHTML).join('\n').trim();
 }
 
-function getSectionsByH2(doc) {
+// Splits `root`'s direct children into sections keyed by heading text.
+// Accepts h1 or h2 as section-level headings: the tool's own legacy export
+// used h2, but Notion's HTML export uses h1 for every top-level heading. h3 is
+// deliberately excluded — both formats use it for activity headings *within*
+// a Lesson Procedure section, so treating it as a section boundary here would
+// fracture that section instead of leaving those headings as its content.
+// `excludeNode` lets the caller skip the node already identified as the
+// document title so it isn't mistaken for an (empty) section boundary.
+function getSectionsByHeading(root, excludeNode) {
   const sections = new Map();
   let currentHeading = '';
 
-  Array.from(doc.body.children).forEach((child) => {
+  Array.from(root.children).forEach((child) => {
     const tagName = child.tagName?.toLowerCase();
-    if (tagName === 'h2') {
+    if (/^h[12]$/.test(tagName || '') && child !== excludeNode) {
       currentHeading = normalizeHeading(getText(child));
       if (!sections.has(currentHeading)) {
         sections.set(currentHeading, []);
@@ -308,7 +326,32 @@ function mapHeading(sections, aliases) {
   return [];
 }
 
+// Notion renders a Glossary as a two-column table (Concept | Definition)
+// rather than a bulleted list. Skips a header row if its first cell literally
+// reads "Concept".
+function parseGlossaryTable(table) {
+  const rows = Array.from(table.querySelectorAll('tr'));
+  const entries = [];
+
+  rows.forEach((tr, index) => {
+    const cells = Array.from(tr.querySelectorAll('td, th'));
+    if (cells.length < 2) return;
+
+    const concept = getText(cells[0]);
+    const definition = getText(cells[1]);
+    if (index === 0 && normalizeHeading(concept) === 'concept') return;
+    if (!concept && !definition) return;
+
+    entries.push({ id: crypto.randomUUID(), concept, definition });
+  });
+
+  return entries;
+}
+
 function parseGlossary(nodes) {
+  const tableNode = nodes.find((node) => node.tagName?.toLowerCase() === 'table');
+  if (tableNode) return parseGlossaryTable(tableNode);
+
   const entries = [];
 
   nodes.forEach((node) => {
@@ -368,31 +411,94 @@ function getActivityType(title) {
 const ACTIVITY_TYPES = ['Recap', 'Task Review', 'Explore', 'Make', 'Evaluate', 'Share', 'Task at Home'];
 const ACTIVITY_TYPE_TOKEN = /\[(Recap|Task Review|Explore|Make|Evaluate|Share|Task at Home)\]/g;
 
-// Split an exported activity heading ("Title · [Type] · N min · Slides: X") back
-// into its parts. Without this, re-importing an exported guide folds the type
-// and duration into the title, and each round-trip compounds the pollution.
+// Maps the pedagogy-stage word Notion authors use as a leading "(Word) Title"
+// prefix to this tool's activity type. Deliberately narrower than
+// getActivityType()'s fuzzy fallback: only a recognized stage word is stripped
+// from the title, so an unrelated leading parenthetical (e.g. "(Optional) ...")
+// is left alone.
+const STAGE_WORD_TO_TYPE = {
+  initiate: 'Recap',
+  recap: 'Recap',
+  review: 'Task Review',
+  'task review': 'Task Review',
+  learn: 'Explore',
+  explore: 'Explore',
+  make: 'Make',
+  create: 'Make',
+  evaluate: 'Evaluate',
+  share: 'Share',
+  present: 'Share',
+  'task at home': 'Task at Home',
+};
+
+// Split an activity heading back into its title/type/duration. Handles two
+// formats: this tool's own exported "Title · [Type] · N min · Slides: X", and
+// Notion's "(Type) Title (N Minutes)" convention.
 function parseActivityHeader(rawTitle) {
-  let text = String(rawTitle || '');
+  let text = String(rawTitle || '').trim();
 
   let activityType = '';
-  const typeMatch = text.match(/\[(Recap|Task Review|Explore|Make|Evaluate|Share|Task at Home)\]/);
-  if (typeMatch) activityType = typeMatch[1];
+  const leadingParenMatch = text.match(/^\(([^)]+)\)\s*/);
+  if (leadingParenMatch) {
+    const stageKey = normalizeHeading(leadingParenMatch[1]);
+    if (STAGE_WORD_TO_TYPE[stageKey]) {
+      activityType = STAGE_WORD_TO_TYPE[stageKey];
+      text = text.slice(leadingParenMatch[0].length);
+    }
+  }
+
+  if (!activityType) {
+    const typeMatch = text.match(/\[(Recap|Task Review|Explore|Make|Evaluate|Share|Task at Home)\]/);
+    if (typeMatch) activityType = typeMatch[1];
+  }
 
   let duration = 0;
-  const durMatch = text.match(/\b(\d+)\s*min\b/i);
-  if (durMatch) duration = Number(durMatch[1]);
+  const parenDurMatch = text.match(/\(\s*(\d+)\s*(?:minutes?|mins?)\s*\)/i);
+  if (parenDurMatch) {
+    duration = Number(parenDurMatch[1]);
+  } else {
+    const durMatch = text.match(/\b(\d+)\s*(?:minutes?|mins?)\b/i);
+    if (durMatch) duration = Number(durMatch[1]);
+  }
 
   const activityTitle = text
     .replace(ACTIVITY_TYPE_TOKEN, ' ')
-    .replace(/\b\d+\s*min\b/gi, ' ')
+    .replace(/\(\s*\d+\s*(?:minutes?|mins?)\s*\)/gi, ' ')
+    .replace(/\b\d+\s*(?:minutes?|mins?)\b/gi, ' ')
     // Strip any legacy "Slides: X" fragment left in older exported headings.
     .replace(/Slides?:\s*[^·]*/gi, ' ')
     .replace(/\s*·\s*/g, ' ')
     .replace(/\s{2,}/g, ' ')
-    .replace(/^[\s·:–-]+|[\s·:–-]+$/g, '')
+    .replace(/^[\s·:()–-]+|[\s·:()–-]+$/g, '')
     .trim();
 
   return { activityTitle, activityType, duration };
+}
+
+// Returns the heading text for a node that starts a new activity: either a
+// raw <h1-4> (this tool's own export) or a Notion toggle block
+// (<details><summary><h3>...) whose summary wraps a heading. Returns null for
+// anything else, including plain (non-heading) toggles used for asides.
+function getHeadingText(node) {
+  const tag = node.tagName?.toLowerCase();
+  if (/^h[1-4]$/.test(tag || '')) return getText(node);
+
+  if (tag === 'details') {
+    const summary = node.querySelector(':scope > summary');
+    const heading = summary?.querySelector('h1, h2, h3, h4');
+    if (heading) return getText(heading);
+  }
+
+  return null;
+}
+
+// A Notion toggle's body lives in a `.indented` div alongside <summary>;
+// anything else (a plain <details> with no such wrapper) just uses its
+// non-summary children directly.
+function getDetailsContent(node) {
+  const container = node.querySelector(':scope > div.indented');
+  if (container) return Array.from(container.children);
+  return Array.from(node.children).filter((child) => child.tagName?.toLowerCase() !== 'summary');
 }
 
 function parseLessonProcedure(nodes) {
@@ -415,13 +521,24 @@ function parseLessonProcedure(nodes) {
   };
 
   nodes.forEach((node) => {
-    if (node.tagName?.toLowerCase() === 'h3') {
+    const tagName = node.tagName?.toLowerCase();
+    const isRawHeading = /^h[1-4]$/.test(tagName || '');
+
+    if (isRawHeading) {
       flush();
-      current = {
-        title: getText(node),
-        content: [],
-      };
+      current = { title: getText(node), content: [] };
       return;
+    }
+
+    // Notion wraps each activity in a collapsible toggle instead of a bare
+    // heading, so a plain tagName check misses it entirely.
+    if (tagName === 'details') {
+      const headingText = getHeadingText(node);
+      if (headingText !== null) {
+        flush();
+        current = { title: headingText, content: getDetailsContent(node) };
+        return;
+      }
     }
 
     if (!current) {
@@ -545,7 +662,7 @@ function parseInteractiveGuide(doc, lessonTitle) {
       guide.learningOutcomes = extractListItems([body]);
       matched = true;
     } else if (key === 'preparation') {
-      guide.preparation = extractListItems([body]);
+      guide.preparation = body.innerHTML.trim();
       matched = true;
     } else if (key === 'outline overview') {
       guide.outlineOverview = parseInteractiveOutline(body);
@@ -559,12 +676,124 @@ function parseInteractiveGuide(doc, lessonTitle) {
         .filter((e) => e.concept || e.definition);
       matched = true;
     } else if (key === 'bonus activities') {
-      guide.bonusActivities = extractListItems([body]);
+      guide.bonusActivities = body.innerHTML.trim();
       matched = true;
     }
   });
 
   return matched ? guide : null;
+}
+
+// ── Import: Notion / flat heading export ──────────────────────────────
+// Alias lists a section's heading text is matched against, case-insensitively.
+// Notion's own vocabulary ("Learning Objectives", "Glossaries") differs from
+// this tool's ("Learning Outcomes", "Glossary"), so both need to resolve to
+// the same guide field.
+const OVERVIEW_ALIASES = ['Session Overview', 'Overview', 'Description'];
+const LEARNING_OUTCOME_ALIASES = ['Learning Outcomes', 'Learning Objectives', 'Objectives'];
+const PREPARATION_ALIASES = ['Preparation', 'Materials', 'Materials Needed', 'Prerequisites'];
+// Notion exports commonly add an "Extra Resources" section with no equivalent
+// field in this tool; folding it into Preparation keeps the links instead of
+// silently dropping them.
+const EXTRA_RESOURCE_ALIASES = ['Extra Resources', 'Resources', 'Additional Resources'];
+const LESSON_PROCEDURE_ALIASES = ['Lesson Procedure', 'Procedure', 'Session Procedure', 'Lesson Plan'];
+const GLOSSARY_ALIASES = ['Glossary', 'Glossaries', 'Key Terms', 'Vocabulary'];
+const BONUS_ALIASES = ['Bonus Activities', 'Bonus Activity', 'Extension Activities', 'Bonus'];
+
+// Detects a table shaped like Notion's outline summary (Type / Section name /
+// Estimated time, in any order) and reads it into outline rows. Column order
+// is resolved from the header text rather than assumed, since Notion doesn't
+// label this table with a heading the way it does everything else.
+function parseOutlineTable(table) {
+  const theadCells = Array.from(table.querySelectorAll('thead th, thead td'));
+  let headers;
+  let bodyRows;
+
+  if (theadCells.length > 0) {
+    headers = theadCells.map((cell) => normalizeHeading(getText(cell)));
+    bodyRows = Array.from(table.querySelectorAll('tbody tr'));
+  } else {
+    const rows = Array.from(table.querySelectorAll('tr'));
+    if (!rows.length) return null;
+    headers = Array.from(rows[0].querySelectorAll('th, td')).map((cell) => normalizeHeading(getText(cell)));
+    bodyRows = rows.slice(1);
+  }
+
+  const typeIdx = headers.findIndex((h) => /type/.test(h));
+  const timeIdx = headers.findIndex((h) => /time|duration|minute/.test(h));
+  const nameIdx = headers.findIndex((h) => /section|activity|name/.test(h));
+  if (typeIdx === -1 || timeIdx === -1) return null;
+
+  const rows = [];
+  bodyRows.forEach((tr) => {
+    const cells = Array.from(tr.querySelectorAll('th, td')).map((cell) => getText(cell));
+    if (!cells.length) return;
+
+    const type = cells[typeIdx] || '';
+    const sectionName = nameIdx >= 0 ? cells[nameIdx] || '' : '';
+    const durationMatch = (cells[timeIdx] || '').match(/(\d+)/);
+    if (!type && !sectionName && !durationMatch) return;
+
+    rows.push({
+      id: crypto.randomUUID(),
+      type,
+      sectionName,
+      pedagogy: '',
+      durationMinutes: durationMatch ? Number(durationMatch[1]) : 0,
+    });
+  });
+
+  return rows.length ? rows : null;
+}
+
+// The outline table isn't under a heading this tool recognizes, so it's found
+// by shape rather than by section — the first matching table anywhere in the
+// document wins.
+function parseOutlineOverviewTables(root) {
+  const tables = Array.from(root.querySelectorAll('table'));
+  for (const table of tables) {
+    const rows = parseOutlineTable(table);
+    if (rows) return rows;
+  }
+  return [];
+}
+
+// Maps a Notion "Production State" property value onto this tool's fixed set
+// of states (the editor renders it in a <select>, so anything else would show
+// as unselected).
+function normalizeProductionState(raw) {
+  const value = normalizeHeading(raw);
+  if (/publish|done|complete|live/.test(value)) return 'Published';
+  if (/review|progress|active/.test(value)) return 'In Review';
+  if (/archiv/.test(value)) return 'Archived';
+  return 'Draft';
+}
+
+// Reads lesson metadata out of Notion's page-properties table (Grade, Slides
+// Link, Module Link, Production State/Status). Absent in this tool's own
+// exports, so a missing table is not an error.
+function parseNotionProperties(doc) {
+  const table = doc.querySelector('table.properties');
+  if (!table) return null;
+
+  const info = {};
+  Array.from(table.querySelectorAll('tr')).forEach((tr) => {
+    const th = tr.querySelector('th');
+    const td = tr.querySelector('td');
+    if (!th || !td) return;
+
+    const label = normalizeHeading(getText(th));
+    const link = td.querySelector('a');
+    const value = link ? link.getAttribute('href') || getText(link) : getText(td);
+    if (!value) return;
+
+    if (/grade/.test(label)) info.gradeLevel = value;
+    else if (/module/.test(label)) info.moduleLink = value;
+    else if (/slide/.test(label)) info.slidesLink = value;
+    else if (/status|production/.test(label)) info.productionState = normalizeProductionState(value);
+  });
+
+  return Object.keys(info).length ? info : null;
 }
 
 function parseGuideFromHTML(htmlString) {
@@ -575,27 +804,51 @@ function parseGuideFromHTML(htmlString) {
     return null;
   }
 
-  const h1Nodes = Array.from(doc.querySelectorAll('h1'));
-  const lessonTitleNode = h1Nodes[1] || h1Nodes[0];
-  const lessonTitle = getText(lessonTitleNode);
+  // New interactive (collapsible) export uses <details class="card"> instead of
+  // <h2>/<h3> headings — parse that first, falling back to the flat formats below.
+  if (doc.querySelector('details.card')) {
+    const h1Nodes = Array.from(doc.querySelectorAll('h1'));
+    const lessonTitleNode = h1Nodes[1] || h1Nodes[0];
+    const lessonTitle = getText(lessonTitleNode);
+    if (lessonTitle) {
+      const interactive = parseInteractiveGuide(doc, lessonTitle);
+      if (interactive) return interactive;
+    }
+  }
+
+  // Notion wraps its content in <article class="page"><div class="page-body">,
+  // with the real title in a <header class="page-title"> outside it — unlike
+  // this tool's own flat exports, whose h1 title sits among the body's direct
+  // children. Prefer .page-title when present so the walk below starts from
+  // the right root and doesn't mistake the title for a section heading.
+  const pageTitleNode = doc.querySelector('.page-title');
+  const contentRoot = doc.querySelector('.page-body') || doc.body;
+
+  let lessonTitle;
+  let excludeFromSections = null;
+  if (pageTitleNode) {
+    lessonTitle = getText(pageTitleNode);
+  } else {
+    const h1Nodes = Array.from(doc.querySelectorAll('h1'));
+    const lessonTitleNode = h1Nodes[1] || h1Nodes[0];
+    lessonTitle = getText(lessonTitleNode);
+    excludeFromSections = lessonTitleNode || null;
+  }
   if (!lessonTitle) {
     return null;
   }
 
-  // New interactive (collapsible) export uses <details class="card"> instead of
-  // <h2>/<h3> headings — parse that first, falling back to the legacy flat format.
-  if (doc.querySelector('details.card')) {
-    const interactive = parseInteractiveGuide(doc, lessonTitle);
-    if (interactive) return interactive;
-  }
-
-  const sections = getSectionsByH2(doc);
-  const overviewNodes = mapHeading(sections, ['Session Overview']);
-  const learningOutcomeNodes = mapHeading(sections, ['Learning Outcomes']);
-  const preparationNodes = mapHeading(sections, ['Preparation']);
-  const lessonProcedureNodes = mapHeading(sections, ['Lesson Procedure']);
-  const glossaryNodes = mapHeading(sections, ['Glossary']);
-  const bonusNodes = mapHeading(sections, ['Bonus Activities']);
+  const sections = getSectionsByHeading(contentRoot, excludeFromSections);
+  const overviewNodes = mapHeading(sections, OVERVIEW_ALIASES);
+  const learningOutcomeNodes = mapHeading(sections, LEARNING_OUTCOME_ALIASES);
+  const preparationNodes = mapHeading(sections, PREPARATION_ALIASES).concat(
+    mapHeading(sections, EXTRA_RESOURCE_ALIASES),
+  );
+  const lessonProcedureNodes = mapHeading(sections, LESSON_PROCEDURE_ALIASES);
+  const glossaryNodes = mapHeading(sections, GLOSSARY_ALIASES);
+  const bonusNodes = mapHeading(sections, BONUS_ALIASES);
+  const outlineOverview = parseOutlineOverviewTables(contentRoot);
+  const notionInfo = parseNotionProperties(doc);
 
   const hasMappedSection =
     overviewNodes.length ||
@@ -603,7 +856,8 @@ function parseGuideFromHTML(htmlString) {
     preparationNodes.length ||
     lessonProcedureNodes.length ||
     glossaryNodes.length ||
-    bonusNodes.length;
+    bonusNodes.length ||
+    outlineOverview.length;
 
   if (!hasMappedSection) {
     return null;
@@ -619,12 +873,16 @@ function parseGuideFromHTML(htmlString) {
     },
     overview: '',
     learningOutcomes: [''],
-    preparation: [''],
+    preparation: '',
     outlineOverview: [],
     lessonProcedure: [],
     glossary: [],
-    bonusActivities: [],
+    bonusActivities: '',
   };
+
+  if (notionInfo) {
+    Object.assign(guide.lessonInfo, notionInfo);
+  }
 
   if (overviewNodes.length > 0) {
     guide.overview = extractHTML(overviewNodes);
@@ -635,7 +893,12 @@ function parseGuideFromHTML(htmlString) {
   }
 
   if (preparationNodes.length > 0) {
-    guide.preparation = extractListItems(preparationNodes);
+    // Rich HTML (not a plain-text list) so links and formatting survive.
+    guide.preparation = extractHTML(preparationNodes);
+  }
+
+  if (outlineOverview.length > 0) {
+    guide.outlineOverview = outlineOverview;
   }
 
   if (lessonProcedureNodes.length > 0) {
@@ -647,7 +910,7 @@ function parseGuideFromHTML(htmlString) {
   }
 
   if (bonusNodes.length > 0) {
-    guide.bonusActivities = extractListItems(bonusNodes);
+    guide.bonusActivities = extractHTML(bonusNodes);
   }
 
   return guide;

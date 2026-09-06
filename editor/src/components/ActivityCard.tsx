@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils'
 import { ACTIVITY_TYPES, type Activity } from '@/types'
 
 // Color pill per activity type
-const TYPE_COLOR: Record<string, string> = {
+export const TYPE_COLOR: Record<string, string> = {
   Recap:          'bg-purple-100 text-purple-800 border-purple-200',
   'Task Review':  'bg-orange-100 text-orange-800 border-orange-200',
   Explore:        'bg-blue-100   text-blue-800   border-blue-200',
@@ -61,7 +61,7 @@ export function ActivityCard({
           <button
             {...attributes}
             {...listeners}
-            className="drag-handle p-1 -ml-1 rounded text-muted-foreground hover:text-foreground"
+            className="drag-handle p-1 -ml-1 rounded text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing touch-none"
             aria-label="Drag to reorder"
           >
             <GripVertical className="h-4 w-4" />

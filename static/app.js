@@ -27,6 +27,38 @@ const GUIDE_STORAGE_KEY = 'teacherGuideData';
 const DEFAULT_GENERATE_LABEL = generateBtn?.dataset?.defaultLabel || 'Generate';
 const LOADING_GENERATE_LABEL = 'Generating...';
 
+/* ── Guide storage (IndexedDB) ───────────────────────────────────────
+ * localStorage caps out around 5-10MB per origin, which imported guides
+ * with embedded images can easily exceed (silently, as a caught
+ * QuotaExceededError). IndexedDB's quota is far larger, so the guide
+ * handed to the editor is stored there instead - shared with the editor
+ * bundle via the same DB/store/key names (see editor/src/hooks/useAutoSave.ts). */
+const GUIDE_DB_NAME = 'teacher-guide-editor';
+const GUIDE_DB_STORE = 'guide';
+const GUIDE_DB_VERSION = 1;
+
+function openGuideDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(GUIDE_DB_NAME, GUIDE_DB_VERSION);
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains(GUIDE_DB_STORE)) {
+        request.result.createObjectStore(GUIDE_DB_STORE);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function saveGuideToDB(key, value) {
+  return openGuideDB().then((db) => new Promise((resolve, reject) => {
+    const tx = db.transaction(GUIDE_DB_STORE, 'readwrite');
+    tx.objectStore(GUIDE_DB_STORE).put(value, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  }));
+}
+
 function getUploadApiBaseUrl() {
   const base = document.body?.dataset?.uploadApiBaseUrl || '';
   return base.replace(/\/$/, '');
@@ -980,7 +1012,7 @@ generateBtn.addEventListener('click', async () => {
     currentToken = typeof data.token === 'string' && data.token.trim() ? data.token : null;
     if (data.guide && currentToken) {
       sessionStorage.setItem(`pending-guide:${currentToken}`, JSON.stringify(data.guide));
-      localStorage.setItem(GUIDE_STORAGE_KEY, JSON.stringify(data.guide));
+      saveGuideToDB(GUIDE_STORAGE_KEY, data.guide).catch(() => {});
     }
 
     // Show success toast
@@ -1021,20 +1053,29 @@ if (importGuideBtn && importGuideInput) {
 
     const reader = new FileReader();
     reader.onload = () => {
+      let normalizedGuide;
       try {
         const text = typeof reader.result === 'string' ? reader.result : '';
         const guide = parseGuideFromHTML(text);
-        const normalizedGuide = guide ? normalizeGuide(guide) : null;
+        normalizedGuide = guide ? normalizeGuide(guide) : null;
         if (!normalizedGuide) throw new Error('Invalid guide format');
-
-        localStorage.setItem(GUIDE_STORAGE_KEY, JSON.stringify(normalizedGuide));
-        currentToken = null;
-        window.location.href = '/editor';
       } catch {
         showError('Invalid Teacher Guide HTML format');
-      } finally {
         importGuideInput.value = '';
+        return;
       }
+
+      saveGuideToDB(GUIDE_STORAGE_KEY, normalizedGuide)
+        .then(() => {
+          currentToken = null;
+          window.location.href = '/editor';
+        })
+        .catch(() => {
+          showError('Could not save the imported guide in your browser storage.');
+        })
+        .finally(() => {
+          importGuideInput.value = '';
+        });
     };
 
     reader.onerror = () => {

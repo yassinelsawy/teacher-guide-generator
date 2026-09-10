@@ -25,13 +25,16 @@ class GuideGenerationBusyError(RuntimeError):
     """
 
 TEACHER_GUIDE_PROMPT = """\
-You are a professional curriculum designer.
+You are an expert curriculum designer and lesson-flow analyst producing an instructor-facing Teacher Guide from a lesson slide deck.
+
+Read the ENTIRE session content below before writing anything — do not draft from only the first few slides. Build a complete understanding of the lesson before producing the guide: its title, objectives, key vocabulary, the actual sequence of the material, any recap/review content, concepts being introduced, teacher demonstrations, discussion prompts and their expected responses, worked examples, hands-on activities or projects and their build steps, sharing/presentation procedures, reflection or evaluation content, homework, and any external links, videos, or a final expected project state. Then generate the guide from that full picture, following the order the material actually appears in rather than a reordering you find cleaner. Do not invent a lesson phase (e.g. homework, a recap) that the source doesn't contain.
 
 Generate a complete Teacher Guide as a JSON object.
 
 IMPORTANT RULES:
 - Return ONLY valid JSON. No markdown code blocks. No explanations.
 - Start immediately with {{ and end with }}.
+- Ground every field in the supplied session content — never invent lesson concepts, facts, activities, vocabulary, or URLs that aren't actually present in the source. If something is clearly referenced but not concretely available (e.g. a mentioned but unlinked video), use a short descriptive bracketed placeholder such as "[Video Link - <topic>]" rather than guessing.
 - Use this EXACT structure:
 
 {{
@@ -73,12 +76,18 @@ IMPORTANT RULES:
 
 ACTIVITY TYPE RULES:
 - Use ONLY these exact activityType values: "Recap", "Task Review", "Explore", "Make", "Evaluate", "Share", "Task at Home"
-- Map lesson phases: Initiate → "Recap", Learn/Explore → "Explore", Make/Create → "Make", Share/Present → "Share", Review → "Task Review", Evaluate → "Evaluate"
-- Include 3–6 activities. The whole session lasts {session_minutes} minutes: assign each activity a "duration" in whole minutes so the activities together add up to about {session_minutes} minutes (never far above or below it).
-- For every "Make" activity, write the "instructions" as an ordered list (<ol> with <li> items) of clear, sequential project steps the instructor can follow — one concrete action per step, in the order they should be performed. Do NOT write Make instructions as a single prose paragraph.
+- Map lesson phases by meaning, not by whatever label the slide itself uses: prior-lesson or warm-up review → "Recap"; checking previously submitted/built student work specifically → "Task Review"; concept introduction, explanation, teacher-led discussion, demonstrations, guided questions → "Explore"; hands-on building, coding, or designing → "Make"; student presentation or peer sharing of finished work → "Share"; Q&A, reflection, or end-of-lesson checks for understanding → "Evaluate"; homework or take-home tasks → "Task at Home".
+- Include 3–6 activities. The whole session lasts {session_minutes} minutes: assign each activity a "duration" in whole minutes — in multiples of 5 — so the activities together add up to about {session_minutes} minutes (never far above or below it). An "Evaluate" activity, when included, should get 5 minutes.
+
+WRITE FOR THE TEACHER, NOT A SLIDE SUMMARY:
+- For every activity, go beyond restating slide text: make explicit what the teacher should present or demonstrate, what to emphasize, what discussion questions to ask, what students should do (discuss, build, test, compare, share, reflect), and what a correct/expected response or result looks like — using the same terminology, software names, and project names the source material uses rather than generic paraphrases.
+- For every "Make" activity, write "instructions" as an ordered list (<ol> with <li> items) of concrete, sequential steps — one action per step, in the order performed. Do NOT write Make instructions as a single prose paragraph. When the source establishes a clear final project state, end the instructions with a line in the exact form <p><strong>Expected Outcome:</strong> ...</p> — only when that end state is genuinely supported by the source, never invented.
+- If the source contains a real hyperlink or video URL, preserve it exactly and place it inside the "instructions" (or "preparation"/"bonusActivities") of the activity where it's actually used, formatted as <a href="URL" target="_blank" rel="noopener noreferrer nofollow">Visible Text</a>. For a YouTube/video link, use visible text in the form "Video Link - Title". Never invent or guess a URL.
+- Populate "glossary" with every term the source explicitly defines or calls out as key vocabulary — do not add unrelated general-knowledge definitions the slides don't mention.
+- Prefer concrete, actionable instructions over vague ones — e.g. "Students work on the project" is not acceptable when the source describes actual steps to follow.
 
 HTML RULES (for "overview", "preparation", "bonusActivities", and "instructions" fields ONLY):
-- Use only: <p>, <ul>, <ol>, <li>, <strong>, <em>, <br>
+- Use only: <p>, <ul>, <ol>, <li>, <strong>, <em>, <br>, <a>
 
 Write for TEACHERS (not students). Use clear, academic language.
 
@@ -173,7 +182,13 @@ def generate_teacher_guide(
 
                 if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
                     hit_transient = True
-                    hit_quota = True
+                    # A 429 can mean a short-lived per-minute/per-request rate limit
+                    # (retryable within seconds) or genuine per-day quota exhaustion
+                    # (not retryable until reset). Gemini's error body distinguishes
+                    # these via the violation's quotaId (e.g. "...PerDayPerProject...").
+                    # Only the latter should produce the "try again tomorrow" message.
+                    if re.search(r"per[\s_-]?day", err_str, re.IGNORECASE):
+                        hit_quota = True
                     retry_match = re.search(r"retry[\s_-]?(?:in|delay)[:\s]+([\d.]+)s", err_str, re.IGNORECASE)
                     suggested = float(retry_match.group(1)) if retry_match else per_model_delay
                     wait = max(suggested, per_model_delay)

@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { EditorToolbar } from '@/components/editor/EditorToolbar'
 import { GuideSectionsSection } from '@/components/sections/GuideSectionsSection'
-import { useAutoSave, loadSaved }  from '@/hooks/useAutoSave'
+import { useAutoSave, loadSaved, saveGuide } from '@/hooks/useAutoSave'
 import { useUndoableState }        from '@/hooks/useUndoableState'
 import { normalizeGuide } from '@/editor/guideNormalization'
 import { exportGuideAsHTML } from '@/services/exportService'
@@ -10,87 +10,82 @@ import { createDefaultGuide, type GuideSection, type TeacherGuide } from '@/type
 
 const API_BASE = import.meta.env.DEV ? '/api' : ''
 const PENDING_GUIDE_KEY_PREFIX = 'pending-guide:'
-const GUIDE_STORAGE_KEY = 'teacherGuideData'
-
-function initGuide(): TeacherGuide {
-  const saved = loadSaved<TeacherGuide>()
-  if (saved) {
-    const parsed = normalizeGuide(saved)
-    if (parsed) return parsed
-  }
-  return createDefaultGuide()
-}
 
 export default function App() {
-  const { value: guide, set: setGuide, undo: undoGuide, canUndo } = useUndoableState<TeacherGuide>(initGuide)
+  const { value: guide, set: setGuide, undo: undoGuide, canUndo } = useUndoableState<TeacherGuide>(createDefaultGuide)
   const [preview, setPreview]   = useState(false)
   const [resetStep, setResetStep] = useState<0 | 1>(0)
-  const [isImporting, setIsImporting] = useState(
-    () => {
-      const params = new URLSearchParams(window.location.search)
-      const token = params.get('token')
-      if (!token) return false
-      return !sessionStorage.getItem(`${PENDING_GUIDE_KEY_PREFIX}${token}`) && !loadSaved<TeacherGuide>()
-    }
-  )
+  // Loading the saved guide from IndexedDB is async, so we always start in
+  // the loading state and resolve it below - there's no synchronous read to
+  // decide this up front the way there was with localStorage.
+  const [isImporting, setIsImporting] = useState(true)
 
   const { status } = useAutoSave(guide)
 
-  // ── Fetch guide from backend by token (cross-origin safe) ────────
+  // ── Load the guide: fresh generator hand-off, previously saved, or fetch by token ──
   useEffect(() => {
+    let cancelled = false
     const params = new URLSearchParams(window.location.search)
     const token = params.get('token')
-    if (!token) return
 
-    const pendingKey = `${PENDING_GUIDE_KEY_PREFIX}${token}`
-    const pendingRaw = sessionStorage.getItem(pendingKey)
+    async function init() {
+      if (token) {
+        const pendingKey = `${PENDING_GUIDE_KEY_PREFIX}${token}`
+        const pendingRaw = sessionStorage.getItem(pendingKey)
 
-    // Keep token-based generation flow when a fresh pending guide exists.
-    if (pendingRaw) {
-      try {
-        const pending = normalizeGuide(JSON.parse(pendingRaw))
-        if (pending) {
-          setGuide(pending)
-          localStorage.setItem(GUIDE_STORAGE_KEY, JSON.stringify(pending))
+        // Keep token-based generation flow when a fresh pending guide exists.
+        if (pendingRaw) {
+          try {
+            const pending = normalizeGuide(JSON.parse(pendingRaw))
+            if (pending && !cancelled) {
+              setGuide(pending)
+              await saveGuide(pending)
+            }
+          } catch (error) {
+            console.error(error)
+          } finally {
+            sessionStorage.removeItem(pendingKey)
+          }
+          return
         }
-        sessionStorage.removeItem(pendingKey)
-      } catch (error) {
-        console.error(error)
-      } finally {
-        setIsImporting(false)
-        window.history.replaceState({}, '', window.location.pathname)
       }
-      return
-    }
 
-    const saved = loadSaved<TeacherGuide>()
-    if (saved) {
-      const parsed = normalizeGuide(saved)
-      if (parsed) {
-        setGuide(parsed)
-        localStorage.setItem(GUIDE_STORAGE_KEY, JSON.stringify(parsed))
+      const saved = await loadSaved<TeacherGuide>()
+      if (saved) {
+        const parsed = normalizeGuide(saved)
+        if (parsed && !cancelled) {
+          setGuide(parsed)
+          await saveGuide(parsed)
+        }
+        return
       }
-      setIsImporting(false)
-      window.history.replaceState({}, '', window.location.pathname)
-      return
-    }
 
-    fetch(`${API_BASE}/guide/${token}`)
-      .then(r => {
+      if (!token) return
+
+      try {
+        const r = await fetch(`${API_BASE}/guide/${token}`)
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        return r.json()
-      })
-      .then((data: unknown) => {
+        const data: unknown = await r.json()
         const parsed = normalizeGuide(data)
         if (!parsed) throw new Error('Invalid guide payload from backend')
-        setGuide(parsed)
-        localStorage.setItem(GUIDE_STORAGE_KEY, JSON.stringify(parsed))
-      })
-      .catch(console.error)
-      .finally(() => {
-        setIsImporting(false)
-        window.history.replaceState({}, '', window.location.pathname)
-      })
+        if (!cancelled) {
+          setGuide(parsed)
+          await saveGuide(parsed)
+        }
+      } catch (error) {
+        console.error(error)
+      }
+    }
+
+    init().finally(() => {
+      if (cancelled) return
+      setIsImporting(false)
+      window.history.replaceState({}, '', window.location.pathname)
+    })
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   // ── Section list updater ──────────────────────────────────────────
@@ -121,7 +116,7 @@ export default function App() {
   if (isImporting) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30">
-        <p className="text-muted-foreground animate-pulse text-sm">Loading guide from generator…</p>
+        <p className="text-muted-foreground animate-pulse text-sm">Loading guide…</p>
       </div>
     )
   }

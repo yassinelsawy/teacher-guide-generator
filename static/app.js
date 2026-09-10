@@ -834,10 +834,17 @@ function parseGuideFromHTML(htmlString) {
     lessonTitle = getText(lessonTitleNode);
     excludeFromSections = lessonTitleNode || null;
   }
+  // A file with no recognizable title heading still isn't a reason to reject
+  // the whole import — fall back to a placeholder so whatever content *does*
+  // match below still comes through.
   if (!lessonTitle) {
-    return null;
+    lessonTitle = 'Untitled Lesson';
   }
 
+  // Any heading (and its content) that doesn't match one of the alias lists
+  // above is simply absent from `sections`/`mapHeading` results below, so it
+  // never makes it into `guide` — i.e. unmatched text is silently dropped
+  // rather than causing the whole import to be rejected.
   const sections = getSectionsByHeading(contentRoot, excludeFromSections);
   const overviewNodes = mapHeading(sections, OVERVIEW_ALIASES);
   const learningOutcomeNodes = mapHeading(sections, LEARNING_OUTCOME_ALIASES);
@@ -849,19 +856,6 @@ function parseGuideFromHTML(htmlString) {
   const bonusNodes = mapHeading(sections, BONUS_ALIASES);
   const outlineOverview = parseOutlineOverviewTables(contentRoot);
   const notionInfo = parseNotionProperties(doc);
-
-  const hasMappedSection =
-    overviewNodes.length ||
-    learningOutcomeNodes.length ||
-    preparationNodes.length ||
-    lessonProcedureNodes.length ||
-    glossaryNodes.length ||
-    bonusNodes.length ||
-    outlineOverview.length;
-
-  if (!hasMappedSection) {
-    return null;
-  }
 
   const guide = {
     lessonInfo: {

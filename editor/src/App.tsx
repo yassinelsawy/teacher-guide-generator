@@ -25,7 +25,6 @@ export default function App() {
   const { value: guide, set: setGuide, undo: undoGuide, canUndo } = useUndoableState<TeacherGuide>(initGuide)
   const [preview, setPreview]   = useState(false)
   const [resetStep, setResetStep] = useState<0 | 1>(0)
-  const [printMode, setPrintMode] = useState(false)
   const [isImporting, setIsImporting] = useState(
     () => {
       const params = new URLSearchParams(window.location.search)
@@ -104,19 +103,6 @@ export default function App() {
     exportGuideAsHTML(guide)
   }
 
-  // ── Print-based PDF export ──────────────────────────────────────
-  useEffect(() => {
-    if (!printMode) return
-    // Allow React to render all sections open, then trigger browser print
-    const id = setTimeout(() => {
-      window.print()
-      window.onafterprint = () => setPrintMode(false)
-    }, 150)
-    return () => clearTimeout(id)
-  }, [printMode])
-
-  const exportPDF = () => setPrintMode(true)
-
   const backToGenerator = () => {
     window.location.href = '/'
   }
@@ -147,7 +133,6 @@ export default function App() {
         gradeLevel={lessonInfo?.gradeLevel ?? ''}
         productionState={lessonInfo?.productionState ?? ''}
         preview={preview}
-        printMode={printMode}
         resetStep={resetStep}
         saveStatus={status}
         canUndo={canUndo}
@@ -155,7 +140,6 @@ export default function App() {
         onTogglePreview={() => setPreview((p) => !p)}
         onBackToGenerator={backToGenerator}
         onExportHTML={exportHTML}
-        onExportPDF={exportPDF}
         onReset={handleReset}
       />
 
@@ -166,7 +150,6 @@ export default function App() {
           sections={guide.sections}
           onChange={setSections}
           readOnly={preview}
-          forceOpen={printMode}
         />
 
       </main>
